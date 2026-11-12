@@ -1,0 +1,374 @@
+package net.anfall.auth.setup;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import net.anfall.auth.crypto.RecoveryCodes;
+import net.anfall.auth.crypto.SecretCipher;
+import net.anfall.auth.crypto.Tokens;
+import net.anfall.auth.crypto.Totp;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/** Läuft gegen ein echtes PostgreSQL (Testcontainers), damit Sperren und Transaktionen wirklich geprüft werden. */
+@SpringBootTest(properties = {
+        "spring.datasource.password=ignored-by-service-connection",
+        "app.public-base-url=https://auth.example.test",
+        // 19 MiB und 2 Durchläufe sind das OWASP-Minimum, das hält die Tests schnell
+        "app.argon2.memory-kib=19456",
+        "app.argon2.iterations=2",
+        "app.totp-encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+})
+@AutoConfigureMockMvc
+@Testcontainers
+@ExtendWith(OutputCaptureExtension.class)
+class SetupIntegrationTest {
+
+    @Container
+    @ServiceConnection
+    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine");
+
+    private static final String PASSWORD = "correct horse battery staple";
+
+    @Autowired MockMvc mvc;
+    @Autowired JdbcClient jdbc;
+    @Autowired JsonMapper json;
+    @Autowired SetupService setup;
+    @Autowired SetupLinkAnnouncer announcer;
+    @Autowired SecretCipher cipher;
+
+    @BeforeEach
+    void cleanDatabase() {
+        // permissions und roles bleiben (kommen aus der Migration)
+        jdbc.sql("TRUNCATE audit_log, recovery_codes, user_totp, user_credentials, user_pii, user_roles, "
+                + "setup_tokens, users CASCADE").update();
+    }
+
+    // ---- Start und Setup-Link ----
+
+    @Test
+    void startupWithoutAdminLogsASetupLinkWhoseHashIsStored(CapturedOutput output) throws Exception {
+        announcer.run(null);
+
+        String log = output.getOut();
+        int idx = log.lastIndexOf("https://auth.example.test/setup/"); // der letzte, der erste stammt vom App-Start
+        assertThat(idx).as("Setup-Link im Log").isGreaterThanOrEqualTo(0);
+        String token = log.substring(idx + "https://auth.example.test/setup/".length()).split("\\s")[0];
+
+        assertThat(token).hasSize(43); // 256 Bit, Base64url
+        // gespeichert ist nur der Hash, nie der Token
+        assertThat(jdbc.sql("SELECT token_hash FROM setup_tokens").query(String.class).list())
+                .containsExactly(Tokens.sha256Hex(token));
+        mvc.perform(get("/api/setup/" + token)).andExpect(status().isOk());
+    }
+
+    @Test
+    void restartIssuesNewLinkAndInvalidatesTheOldOne() throws Exception {
+        String first = setup.issueToken();
+        String second = setup.issueToken();
+        mvc.perform(get("/api/setup/" + first)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/setup/" + second)).andExpect(status().isOk());
+    }
+
+    @Test
+    void noLinkIsIssuedOnceAnAdminExists() throws Exception {
+        createAdminViaSetup();
+        announcer.run(null);
+        assertThat(jdbc.sql("SELECT count(*) FROM setup_tokens WHERE used_at IS NULL").query(Long.class).single())
+                .isZero();
+    }
+
+    // ---- Der Ablauf ----
+
+    @Test
+    void fullFlowCreatesAdminWithRoleTotpAndRecoveryCodes() throws Exception {
+        List<String> codes = createAdminViaSetup();
+
+        assertThat(codes).hasSize(10);
+        assertThat(setup.adminExists()).isTrue();
+
+        // Konto: Username klein, E-Mail normalisiert und bestätigt, Sprache gespeichert
+        assertThat(jdbc.sql("SELECT username, language FROM users").query().singleRow())
+                .containsEntry("username", "joshua").containsEntry("language", "de");
+        assertThat(jdbc.sql("SELECT email, email_verified FROM user_pii").query().singleRow())
+                .containsEntry("email", "joshua@example.com").containsEntry("email_verified", true);
+
+        // Passwort nur als Argon2id-Hash
+        String hash = jdbc.sql("SELECT password_hash FROM user_credentials").query(String.class).single();
+        assertThat(hash).startsWith("$argon2id$").doesNotContain(PASSWORD);
+
+        // Eingebaute Rolle Admin ist zugewiesen
+        assertThat(jdbc.sql("""
+                SELECT r.name FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                """).query(String.class).list()).containsExactly("Admin");
+
+        // TOTP-Geheimnis ist verschlüsselt gespeichert und entschlüsselbar
+        byte[] enc = jdbc.sql("SELECT secret_enc FROM user_totp").query(byte[].class).single();
+        assertThat(cipher.decrypt(enc)).hasSize(20);
+
+        // Wiederherstellungscodes: nur Hashes in der Datenbank, keine Klartextcodes
+        List<String> stored = jdbc.sql("SELECT code_hash FROM recovery_codes").query(String.class).list();
+        assertThat(stored).hasSize(10).doesNotContainAnyElementsOf(codes)
+                .containsExactlyInAnyOrderElementsOf(codes.stream().map(RecoveryCodes::hash).toList());
+
+        // Link ist verbraucht, das Zwischengeheimnis entfernt
+        assertThat(jdbc.sql("SELECT used_at IS NOT NULL AS used, pending_totp_enc IS NULL AS cleared FROM setup_tokens")
+                .query().singleRow()).containsEntry("used", true).containsEntry("cleared", true);
+
+        // Protokoll ohne Geheimnisse
+        assertThat(jdbc.sql("SELECT action FROM audit_log").query(String.class).list())
+                .containsExactly("setup.admin_created");
+        assertThat(jdbc.sql("SELECT details::text FROM audit_log").query(String.class).single())
+                .doesNotContain(PASSWORD);
+    }
+
+    @Test
+    void setupWorksOnlyOnce() throws Exception {
+        String token = setup.issueToken();
+        completeOk(token, "joshua", prepareAndCode(token));
+
+        // derselbe Link nochmal
+        mvc.perform(post("/api/setup/" + token + "/complete").contentType(MediaType.APPLICATION_JSON)
+                        .content(body("zweiter", "zweiter@example.com", PASSWORD, "en", "123456")))
+                .andExpect(status().isNotFound());
+        // ein frisch erzeugter Link ist wertlos, sobald ein Admin existiert
+        String another = setup.issueToken();
+        mvc.perform(get("/api/setup/" + another)).andExpect(status().isNotFound());
+        mvc.perform(post("/api/setup/" + another + "/prepare")).andExpect(status().isNotFound());
+        assertThat(jdbc.sql("SELECT count(*) FROM users").query(Long.class).single()).isEqualTo(1);
+    }
+
+    @Test
+    void invalidExpiredAndUsedLinksAllGiveTheSameNeutralError() throws Exception {
+        String expired = setup.issueToken();
+        jdbc.sql("UPDATE setup_tokens SET expires_at = now() - interval '1 second'").update();
+        String unknown = Tokens.newToken();
+
+        String a = mvc.perform(get("/api/setup/" + unknown)).andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        String b = mvc.perform(get("/api/setup/" + expired)).andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(a).isEqualTo(b).contains("invalid_link");
+
+        // benutzt
+        String used = setup.issueToken();
+        completeOk(used, "joshua", prepareAndCode(used));
+        String c = mvc.perform(get("/api/setup/" + used)).andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(c).isEqualTo(a);
+    }
+
+    // ---- 2FA ist Pflicht ----
+
+    @Test
+    void withoutValidTotpCodeNoAdminIsCreatedAndLinkSurvives() throws Exception {
+        String token = setup.issueToken();
+        String secret = prepare(token);
+
+        // ohne prepare-Schritt gäbe es kein Geheimnis: erst nach prepare prüfen wir den falschen Code
+        postComplete(token, "joshua", "000000").andExpect(status().isBadRequest());
+        assertThat(jdbc.sql("SELECT count(*) FROM users").query(Long.class).single()).isZero();
+
+        // Link wurde nicht verbraucht, der richtige Code funktioniert danach noch
+        postComplete(token, "joshua", codeFor(secret)).andExpect(status().isOk());
+        assertThat(setup.adminExists()).isTrue();
+    }
+
+    @Test
+    void completeWithoutPrepareIsRejected() throws Exception {
+        String token = setup.issueToken();
+        MvcResult r = postComplete(token, "joshua", "123456").andExpect(status().isBadRequest()).andReturn();
+        assertThat(r.getResponse().getContentAsString()).contains("totp_not_prepared");
+    }
+
+    @Test
+    void prepareReturnsTheSameSecretWhileLinkIsValid() throws Exception {
+        String token = setup.issueToken();
+        assertThat(prepare(token)).isEqualTo(prepare(token));
+    }
+
+    // ---- Eingabeprüfung (Link bleibt dabei erhalten) ----
+
+    @Test
+    void badInputIsRejectedWithCodesAndDoesNotConsumeTheLink() throws Exception {
+        String token = setup.issueToken();
+        String code = prepareAndCode(token);
+
+        assertError(token, "ab", "joshua@example.com", PASSWORD, "en", code, 400, "username_invalid");
+        assertError(token, "Jösh", "joshua@example.com", PASSWORD, "en", code, 400, "username_invalid");
+        assertError(token, "joshua", "kaputt", PASSWORD, "en", code, 400, "email_invalid");
+        assertError(token, "joshua", "joshua@example.com", "kurz", "en", code, 400, "password_too_short");
+        assertError(token, "joshua", "joshua@example.com", "a".repeat(129), "en", code, 400, "password_too_long");
+        assertError(token, "joshua", "joshua@example.com", PASSWORD, "fr", code, 400, "language_invalid");
+
+        // Nach all den Fehlern geht der Link noch
+        postComplete(token, "joshua", code).andExpect(status().isOk());
+    }
+
+    @Test
+    void longPasswordsUpTo128AreAccepted() throws Exception {
+        String token = setup.issueToken();
+        String code = prepareAndCode(token);
+        mvc.perform(post("/api/setup/" + token + "/complete").contentType(MediaType.APPLICATION_JSON)
+                        .content(body("joshua", "joshua@example.com", "x".repeat(128), "en", code)))
+                .andExpect(status().isOk());
+    }
+
+    // ---- Gleichzeitigkeit ----
+
+    @Test
+    void parallelRequestsCreateExactlyOneAdmin() throws Exception {
+        String token = setup.issueToken();
+        String code = prepareAndCode(token);
+
+        int n = 8;
+        ExecutorService pool = Executors.newFixedThreadPool(n);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<Integer>> results = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            final int nr = i;
+            Callable<Integer> task = () -> {
+                start.await();
+                return mvc.perform(post("/api/setup/" + token + "/complete")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body("admin" + nr, "admin" + nr + "@example.com", PASSWORD, "en", code)))
+                        .andReturn().getResponse().getStatus();
+            };
+            results.add(pool.submit(task));
+        }
+        start.countDown();
+        List<Integer> statuses = new ArrayList<>();
+        for (Future<Integer> f : results) {
+            statuses.add(f.get());
+        }
+        pool.shutdown();
+
+        assertThat(statuses.stream().filter(s -> s == 200)).hasSize(1);
+        assertThat(statuses.stream().filter(s -> s == 404)).hasSize(n - 1);
+        assertThat(jdbc.sql("SELECT count(*) FROM users").query(Long.class).single()).isEqualTo(1);
+        assertThat(jdbc.sql("SELECT count(*) FROM user_roles").query(Long.class).single()).isEqualTo(1);
+        assertThat(jdbc.sql("SELECT count(*) FROM recovery_codes").query(Long.class).single()).isEqualTo(10);
+    }
+
+    // ---- Sonstiges ----
+
+    @Test
+    void migrationSeedsAdminRoleAndBuiltInPermissions() {
+        assertThat(jdbc.sql("SELECT all_admin_permissions FROM roles WHERE name = 'Admin' AND builtin")
+                .query(Boolean.class).single()).isTrue();
+        assertThat(jdbc.sql("SELECT key FROM permissions WHERE key LIKE 'admin.%'").query(String.class).list())
+                .containsExactlyInAnyOrder("admin.users.view", "admin.users.ban", "admin.users.reset_2fa",
+                        "admin.roles.manage", "admin.permissions.manage", "admin.services.manage",
+                        "admin.links.view_all", "admin.audit.view", "admin.settings.manage");
+        assertThat(jdbc.sql("SELECT type, direction, allow_unlimited FROM permissions WHERE key = 'links.max_active'")
+                .query().singleRow())
+                .containsEntry("type", "number").containsEntry("direction", "higher")
+                .containsEntry("allow_unlimited", true);
+    }
+
+    @Test
+    void everythingExceptSetupIsClosed() throws Exception {
+        int status = mvc.perform(get("/api/users")).andReturn().getResponse().getStatus();
+        assertThat(status).isIn(401, 403);
+    }
+
+    @Test
+    void secretResponsesAreNotCached() throws Exception {
+        String token = setup.issueToken();
+        MvcResult r = mvc.perform(post("/api/setup/" + token + "/prepare")).andExpect(status().isOk()).andReturn();
+        assertThat(r.getResponse().getHeader("Cache-Control")).contains("no-store");
+    }
+
+    // ---- Hilfsmethoden ----
+
+    private List<String> createAdminViaSetup() throws Exception {
+        String token = setup.issueToken();
+        return completeOk(token, "joshua", prepareAndCode(token));
+    }
+
+    private String prepare(String token) throws Exception {
+        String res = mvc.perform(post("/api/setup/" + token + "/prepare")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(res).get("secret").asString();
+    }
+
+    private String prepareAndCode(String token) throws Exception {
+        return codeFor(prepare(token));
+    }
+
+    /** Berechnet den Code so, wie es die Authenticator-App täte (aus dem Base32-Geheimnis). */
+    private static String codeFor(String base32Secret) {
+        byte[] secret = decodeBase32(base32Secret);
+        return Totp.codeForStep(secret, Totp.stepAt(System.currentTimeMillis()));
+    }
+
+    private List<String> completeOk(String token, String username, String code) throws Exception {
+        String res = postComplete(token, username, code).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode node = json.readTree(res).get("recoveryCodes");
+        List<String> codes = new ArrayList<>();
+        node.forEach(n -> codes.add(n.asString()));
+        return codes;
+    }
+
+    private org.springframework.test.web.servlet.ResultActions postComplete(String token, String username, String code)
+            throws Exception {
+        return mvc.perform(post("/api/setup/" + token + "/complete").contentType(MediaType.APPLICATION_JSON)
+                .content(body(username, "Joshua@Example.com", PASSWORD, "de", code)));
+    }
+
+    private void assertError(String token, String username, String email, String password, String lang, String code,
+                             int expectedStatus, String expectedError) throws Exception {
+        MvcResult r = mvc.perform(post("/api/setup/" + token + "/complete").contentType(MediaType.APPLICATION_JSON)
+                .content(body(username, email, password, lang, code))).andReturn();
+        assertThat(r.getResponse().getStatus()).isEqualTo(expectedStatus);
+        assertThat(r.getResponse().getContentAsString()).contains(expectedError);
+    }
+
+    private String body(String username, String email, String password, String language, String code) {
+        return json.writeValueAsString(java.util.Map.of("username", username, "email", email,
+                "password", password, "language", language, "totpCode", code));
+    }
+
+    private static byte[] decodeBase32(String s) {
+        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        int buffer = 0;
+        int bits = 0;
+        for (char c : s.toCharArray()) {
+            buffer = (buffer << 5) | alphabet.indexOf(c);
+            bits += 5;
+            if (bits >= 8) {
+                out.write((buffer >> (bits - 8)) & 0xff);
+                bits -= 8;
+            }
+        }
+        return out.toByteArray();
+    }
+}

@@ -1,0 +1,75 @@
+# Stack für AuthenticationService (Backend) und UserHub (UI).
+# Die beiden Repos liegen nebeneinander, die UI wird aus ../UserHub gebaut.
+# Keine veröffentlichten Ports: Von außen kommt man nur über Caddy hinein.
+name: authservice
+
+services:
+  auth-db:
+    image: postgres:17.11-alpine
+    container_name: auth-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  auth-backend:
+    build: .
+    image: auth-backend:local
+    container_name: auth-backend
+    restart: unless-stopped
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://auth-db:5432/auth
+      DB_USER: auth
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://auth.anfall.net}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?TOTP_ENCRYPTION_KEY fehlt in .env}
+      TOTP_ISSUER: ${TOTP_ISSUER:-anfall.net}
+      ARGON2_MEMORY_KIB: ${ARGON2_MEMORY_KIB:-65536}
+      ARGON2_ITERATIONS: ${ARGON2_ITERATIONS:-3}
+      ARGON2_PARALLELISM: ${ARGON2_PARALLELISM:-1}
+    # caddy_net: damit Caddy das Backend erreicht. internal: für die Datenbank.
+    networks: [caddy_net, internal]
+
+  userhub-ui:
+    build: ../UserHub
+    image: userhub-ui:local
+    container_name: userhub-ui
+    restart: unless-stopped
+    networks: [caddy_net]
+
+  # Nur Entwicklung: docker compose --profile dev up -d --build
+  mailpit:
+    image: axllent/mailpit:v1.29.7
+    container_name: mailpit
+    profiles: [dev]
+    restart: unless-stopped
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  auth-db-data:
+
+networks:
+  # Gehört zu Caddy und existiert schon auf dem Server (Annahme, siehe docs/DECISIONS.md)
+  caddy_net:
+    external: true
+  # Nur intern: kein Zugang von außen
+  internal:
+    internal: true

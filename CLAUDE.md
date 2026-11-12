@@ -46,8 +46,10 @@ Container:
 | `auth-backend` | OIDC-Provider, API, Mail, Datenbankzugriff | `caddy_net` und intern |
 | `userhub-ui` | Hub, Admin-Dashboard, Login-, Registrierungs- und Setup-Seiten | `caddy_net` |
 | `auth-db` | PostgreSQL | nur intern |
+| `auth-mail` | Eigener Mailserver (Postfix mit DKIM), nur zum Versenden, keine veröffentlichten Ports | `internal` und `mail_out` |
 | `mailpit` (nur Entwicklung, Compose-Profil `dev`) | Test-Mailserver | nur intern |
 
+- [E] Joshua (12.11.2026): Der Stack bringt einen eigenen Mailserver mit (Container `auth-mail`). Ausgehend Port 25 wird auf dem Server freigegeben, die Einrichtung (Firewall, DNS, rDNS) steht in der README.md. Keine externen Mail-Dienste.
 - [E] Keine veröffentlichten Ports. Nur Caddy ist von außen erreichbar. [A] Das Netzwerk `caddy_net` und der Ablageort `/opt/containers/` stammen aus Joshuas Infrastruktur-Notizen und sind vor Verwendung zu bestätigen.
 - [E] Die beiden Repos liegen nebeneinander (`AuthenticationService/` und `UserHub/` im selben Ordner). Das `docker-compose.yml` liegt in `AuthenticationService` und baut die UI aus `../UserHub`. [U] Prüfe als ersten Schritt, ob die Cloud-Sitzung beide Repos so ablegt. Wenn nicht, melde es, statt eine Umgehung zu bauen.
 - [E] Hostnamen: Hub unter `anfall.net` und `www.anfall.net`, Auth unter `auth.anfall.net`. [A] `anfall.net` ist die Hauptadresse, `www` leitet dorthin um. Die Issuer-URL `https://auth.anfall.net` ist fest und darf sich nie ändern, weil sie in allen Clients hinterlegt ist.
@@ -207,7 +209,7 @@ Jede Etappe: Branch, Tests, PR, Zusammenfassung mit Annahmen und offenen Fragen,
 - [U] Audiobookshelf: Rollen aus Claims, Kriterien von "Match existing users by".
 - [U] Wie schnell Sperren in Audiobookshelf und Vaultwarden wirken.
 - [U] Pelican: Verhalten der Plugins (OIDC beim ersten Login, Limits pro User, Admin-Sicht).
-- [U] Ob die Hetzner-Portsperre für Joshuas Server gilt (betrifft den Mailversand).
+- [U] Hetzner-Portsperre: laut Joshua nicht mehr aktiv, ausgehend Port 25 muss aber auf dem Server noch freigegeben werden. Zustellung an große Anbieter (Gmail, Outlook) ist in der Cloud-Sitzung nicht prüfbar.
 
 ## 13. Quellen
 

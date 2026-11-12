@@ -11,6 +11,10 @@ RUN mvn -q -B -DskipTests package
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app app
 WORKDIR /app
+# Sperrliste bekannter Passwörter laden (festgenagelte Version mit Prüfsumme, nicht im Git)
+COPY scripts/fetch-blocklist.sh /tmp/fetch-blocklist.sh
+RUN sh /tmp/fetch-blocklist.sh /app/data && rm /tmp/fetch-blocklist.sh
+COPY scripts/auth-admin /usr/local/bin/auth-admin
 COPY --from=build /build/target/auth-backend.jar app.jar
 USER 10001:10001
 EXPOSE 8080 8081

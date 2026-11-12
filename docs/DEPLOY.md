@@ -1,5 +1,7 @@
 # Deployment (Entwurf, wird in Etappe 7 vervollständigt)
 
+Der Mailserver (Firewall, DNS, rDNS, SPF, DKIM, DMARC) ist in der `README.md` im Abschnitt "Mailserver" beschrieben. Das gehört zum Setup und sollte vor dem ersten Test mit Mails erledigt sein.
+
 Voraussetzungen auf dem Server: Docker mit Compose, der bestehende Caddy, das Docker-Netzwerk `caddy_net`.
 
 ## 1. Repos klonen
@@ -35,7 +37,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Alle drei Container (`auth-db`, `auth-backend`, `userhub-ui`) sollen `healthy` zeigen. Der erste Build dauert ein paar Minuten.
+Alle Container (`auth-db`, `auth-mail`, `auth-backend`, `userhub-ui`) sollen `healthy` zeigen. Der erste Build dauert ein paar Minuten.
 
 ## 4. Caddy
 
@@ -51,7 +53,18 @@ docker compose logs auth-backend | grep SETUP-LINK
 
 Den Link im Browser öffnen (gilt eine Stunde und nur einmal). Dort Account, Passwort und 2FA einrichten und die Wiederherstellungscodes sicher speichern. Wenn der Link abgelaufen ist, `docker compose restart auth-backend`: Solange kein Admin existiert, entsteht ein neuer Link. Nach dem ersten Admin ist das Setup dauerhaft gesperrt.
 
-## 6. Backup (Platzhalter)
+## 6. Mailserver einrichten
+
+Siehe `README.md`, Abschnitt "Mailserver". Ohne die dortigen DNS-Einträge funktionieren Login und Passwort-Reset,
+aber die Mails kommen bei vielen Anbietern nicht an.
+
+## 7. Betreiber-Befehle
+
+```bash
+docker compose exec auth-backend auth-admin reset-2fa <username>
+```
+
+## 8. Backup (Platzhalter)
 
 Dump der Datenbank in eine Datei:
 
@@ -65,6 +78,8 @@ Wiederherstellen in eine leere Datenbank:
 docker compose exec -T auth-db psql -U auth auth < auth-backup.sql
 ```
 
+Zum Backup gehören der `TOTP_ENCRYPTION_KEY` aus der `.env` (sonst sind die 2FA-Geheimnisse nach einer Wiederherstellung
+unlesbar) und das Docker-Volume `authservice_mail-dkim` (der DKIM-Schlüssel, sonst muss der DNS-Eintrag neu gesetzt werden).
 Wie, wie oft und wohin gesichert wird, ist offen (siehe `OPEN-QUESTIONS.md`).
 
 ## Entwicklung mit Test-Mailserver

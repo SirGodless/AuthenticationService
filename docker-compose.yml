@@ -30,6 +30,8 @@ services:
     depends_on:
       auth-db:
         condition: service_healthy
+      mail:
+        condition: service_started
     environment:
       DB_URL: jdbc:postgresql://auth-db:5432/auth
       DB_USER: auth
@@ -40,8 +42,35 @@ services:
       ARGON2_MEMORY_KIB: ${ARGON2_MEMORY_KIB:-65536}
       ARGON2_ITERATIONS: ${ARGON2_ITERATIONS:-3}
       ARGON2_PARALLELISM: ${ARGON2_PARALLELISM:-1}
-    # caddy_net: damit Caddy das Backend erreicht. internal: für die Datenbank.
+      # Eigener Mailserver (Container "mail"). Zum Entwickeln: MAIL_HOST=mailpit, MAIL_PORT=1025
+      MAIL_HOST: ${MAIL_HOST:-mail}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@anfall.net}
+    # caddy_net: damit Caddy das Backend erreicht. internal: für Datenbank und Mailserver.
     networks: [caddy_net, internal]
+
+  # Eigener Mailserver (Postfix mit DKIM-Signatur), nur zum Versenden. Er hat keine veröffentlichten Ports:
+  # Das Backend übergibt Mails intern, der Container liefert sie selbst an die Empfänger aus (ausgehend Port 25).
+  # Was dafür auf dem Server und im DNS nötig ist, steht in README.md (Abschnitt "Mailserver").
+  mail:
+    # Festgenagelt per Digest (boky/postfix, Stand 12.11.2026)
+    image: boky/postfix@sha256:0632783c64183446c4edeae9092a2e015fdc0c4e8a3976bdf8878a7fc2146361
+    container_name: auth-mail
+    restart: unless-stopped
+    environment:
+      # Nur Mails mit dieser Absender-Domain werden angenommen und signiert
+      ALLOWED_SENDER_DOMAINS: ${MAIL_DOMAIN:-anfall.net}
+      # Muss zum DNS-Eintrag (A) und zum rDNS (PTR) der Server-IP passen
+      POSTFIX_myhostname: ${MAIL_HOSTNAME:-mail.anfall.net}
+      DKIM_AUTOGENERATE: "1"
+      DKIM_SELECTOR: mail
+    volumes:
+      # DKIM-Schlüssel: Müssen erhalten bleiben, sonst passt der DNS-Eintrag nicht mehr
+      - mail-dkim:/var/lib/rspamd/dkim
+      # Warteschlange: Mails überleben einen Neustart
+      - mail-spool:/var/spool/postfix
+    # internal: Backend erreicht den Server. mail_out: Zugang nach draußen zum Ausliefern.
+    networks: [internal, mail_out]
 
   userhub-ui:
     build: ../UserHub
@@ -65,6 +94,8 @@ services:
 
 volumes:
   auth-db-data:
+  mail-dkim:
+  mail-spool:
 
 networks:
   # Gehört zu Caddy und existiert schon auf dem Server (Annahme, siehe docs/DECISIONS.md)
@@ -73,3 +104,5 @@ networks:
   # Nur intern: kein Zugang von außen
   internal:
     internal: true
+  # Nur für den Mailserver: normaler Zugang nach draußen (Auslieferung per SMTP). Keine Ports veröffentlicht.
+  mail_out:

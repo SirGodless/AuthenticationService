@@ -1,7 +1,11 @@
+# Test-Caddy: gleiche Pfadverteilung wie der echte Caddy, aber mit eigenem Testzertifikat.
+# HTTPS ist nötig, weil die Cookies "Secure" sind und der Browser sie sonst nicht speichert.
 {
-	auto_https off
+	local_certs
+	skip_install_trust
 }
-:80 {
+auth.test {
+	tls internal
 	@backend path /oauth2/* /.well-known/* /connect/* /userinfo /api/*
 	reverse_proxy @backend auth-backend:8080
 	reverse_proxy userhub-ui:8080

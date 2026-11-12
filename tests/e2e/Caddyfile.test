@@ -1,0 +1,8 @@
+{
+	auto_https off
+}
+:80 {
+	@backend path /oauth2/* /.well-known/* /connect/* /userinfo /api/*
+	reverse_proxy @backend auth-backend:8080
+	reverse_proxy userhub-ui:8080
+}

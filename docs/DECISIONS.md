@@ -33,11 +33,11 @@ Alle **[A]**-Punkte in den Themen-Dateien. Die größten:
 - Auslegung von "3 pro Stunde je E-Mail und IP" als getrennte Grenzen (`rate-limits.md`).
 - Was "Ableitung" bei Kontextwörtern heißt (`passwords.md`).
 - Bounces werden verworfen (`mail.md`, **[E]** wegen fehlendem Posteingang).
-- Migrationen V1 und V2 bleiben unverändert (`code-structure.md`).
+- Zeitzone "0 Uhr" für das Backup (`containers-and-deployment.md`).
 
 ## Bewusst noch nicht gebaut
 
 - 2FA einrichten, neu erzeugen und abschalten für normale User: kommt mit Etappe 4, weil dort die Pflicht-2FA für Admin-Funktionen greift (siehe `OPEN-QUESTIONS.md`).
 - Registrierung (Etappe 5), OIDC (Etappe 3), Rechte und Rollen mit Dashboard (Etappe 4), Hub-UI (Etappe 6).
 - Backup-Container (Konzept steht, Umsetzung Etappe 7).
-- Pepper für Passwort-Hashes (Frage offen).
+- Passwort-Reset durch Admins erzwingen (Etappe 4, bestätigt).

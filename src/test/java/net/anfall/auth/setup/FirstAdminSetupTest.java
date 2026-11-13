@@ -34,9 +34,9 @@ class FirstAdminSetupTest extends SetupTestBase {
         assertThat(jdbc.sql("SELECT email, email_verified FROM user_pii").query().singleRow())
                 .containsEntry("email", "joshua@example.com").containsEntry("email_verified", true);
 
-        // Passwort nur als Argon2id-Hash
+        // Passwort nur als verschlüsselter Argon2id-Hash
         String hash = jdbc.sql("SELECT password_hash FROM user_credentials").query(String.class).single();
-        assertThat(hash).startsWith("$argon2id$").doesNotContain(PASSWORD);
+        assertThat(hash).startsWith("v1:").doesNotContain("argon2").doesNotContain(PASSWORD); // mit Pepper verschlüsselt
 
         // Eingebaute Rolle Admin ist zugewiesen
         assertThat(jdbc.sql("""

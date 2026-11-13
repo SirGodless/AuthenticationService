@@ -4,7 +4,7 @@ Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
 steht in `CLAUDE.md`.
 
-**Stand:** Etappe 2 (Konten, Login, Passwort-Reset, Mailversand) und die Zwischenetappe zu Struktur und NIST.
+**Stand:** Etappe 2 (Konten, Login, Passwort-Reset, Mailversand) und die Zwischenetappe zu Struktur und NIST (inklusive Pepper für Passwort-Hashes).
 Der OIDC-Provider kommt mit Etappe 3.
 
 ## Ordnerübersicht

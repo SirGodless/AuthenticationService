@@ -12,7 +12,7 @@ class SecretCipherTest {
 
     @Test
     void roundTrip() {
-        SecretCipher c = new SecretCipher(KEY_A);
+        SecretCipher c = new SecretCipher(KEY_A, "TEST_KEY");
         byte[] plain = "geheim".getBytes();
         byte[] enc = c.encrypt(plain);
         assertThat(enc).isNotEqualTo(plain);
@@ -21,24 +21,29 @@ class SecretCipherTest {
 
     @Test
     void sameInputGivesDifferentCiphertext() {
-        SecretCipher c = new SecretCipher(KEY_A);
+        SecretCipher c = new SecretCipher(KEY_A, "TEST_KEY");
         assertThat(c.encrypt("x".getBytes())).isNotEqualTo(c.encrypt("x".getBytes()));
     }
 
     @Test
     void wrongKeyOrTamperedDataFails() {
-        byte[] enc = new SecretCipher(KEY_A).encrypt("geheim".getBytes());
-        assertThatThrownBy(() -> new SecretCipher(KEY_B).decrypt(enc)).isInstanceOf(IllegalStateException.class);
+        byte[] enc = new SecretCipher(KEY_A, "TEST_KEY").encrypt("geheim".getBytes());
+        assertThatThrownBy(() -> new SecretCipher(KEY_B, "TEST_KEY").decrypt(enc)).isInstanceOf(IllegalStateException.class);
         enc[enc.length - 1] ^= 1;
-        assertThatThrownBy(() -> new SecretCipher(KEY_A).decrypt(enc)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new SecretCipher(KEY_A, "TEST_KEY").decrypt(enc)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void errorMessageNamesTheSettingSoTheOperatorKnowsWhatToFix() {
+        assertThatThrownBy(() -> new SecretCipher("", "PASSWORD_PEPPER_KEY")).hasMessageContaining("PASSWORD_PEPPER_KEY");
     }
 
     @Test
     void rejectsMissingOrWrongSizedKey() {
-        assertThatThrownBy(() -> new SecretCipher((String) null)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new SecretCipher("")).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new SecretCipher("kein base64!")).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> new SecretCipher(Base64.getEncoder().encodeToString(new byte[16])))
+        assertThatThrownBy(() -> new SecretCipher(null, "TEST_KEY")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new SecretCipher("", "TEST_KEY")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new SecretCipher("kein base64!", "TEST_KEY")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new SecretCipher(Base64.getEncoder().encodeToString(new byte[16]), "TEST_KEY"))
                 .isInstanceOf(IllegalStateException.class);
     }
 }

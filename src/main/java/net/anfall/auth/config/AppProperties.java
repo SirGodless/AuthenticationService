@@ -13,6 +13,11 @@ public record AppProperties(
         String publicBaseUrl,
         /** Base64 eines 32-Byte-Schlüssels für die TOTP-Geheimnisse (AES-256-GCM). */
         String totpEncryptionKey,
+        /**
+         * Base64 eines 32-Byte-Schlüssels (Pepper): Er verschlüsselt jeden Passwort-Hash zusätzlich (NIST SP 800-63B-4).
+         * Muss ein anderer Schlüssel sein als der für TOTP und getrennt vom Datenbank-Backup aufbewahrt werden.
+         */
+        String passwordPepperKey,
         /** Name, der in der Authenticator-App angezeigt wird. */
         @DefaultValue("anfall.net") String totpIssuer,
         @DefaultValue("PT1H") Duration setupTokenTtl,

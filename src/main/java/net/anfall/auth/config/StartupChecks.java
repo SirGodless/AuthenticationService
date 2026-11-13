@@ -28,6 +28,9 @@ class StartupChecks implements ApplicationRunner {
         if (props.publicBaseUrl() == null || !props.publicBaseUrl().startsWith("http")) {
             throw new IllegalStateException("PUBLIC_BASE_URL fehlt oder ist ungültig");
         }
+        if (props.passwordPepperKey() != null && props.passwordPepperKey().equals(props.totpEncryptionKey())) {
+            throw new IllegalStateException("PASSWORD_PEPPER_KEY und TOTP_ENCRYPTION_KEY müssen verschiedene Schlüssel sein");
+        }
         long start = System.nanoTime();
         encoder.encode("benchmark-only-not-a-real-password");
         long ms = (System.nanoTime() - start) / 1_000_000;

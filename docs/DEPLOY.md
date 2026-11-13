@@ -32,9 +32,10 @@ Dann `.env` bearbeiten. Zwei Werte erzeugst du so:
 ```bash
 openssl rand -base64 24   # für DB_PASSWORD
 openssl rand -base64 32   # für TOTP_ENCRYPTION_KEY
+openssl rand -base64 32   # für PASSWORD_PEPPER_KEY (ein anderer Wert!)
 ```
 
-Den `TOTP_ENCRYPTION_KEY` nach dem ersten Setup nie mehr ändern und im Backup mitführen.
+Den `TOTP_ENCRYPTION_KEY` und den `PASSWORD_PEPPER_KEY` nach dem ersten Setup nie mehr ändern. Der TOTP-Schlüssel gehört ins Backup. Den Pepper-Schlüssel bewahrst du **getrennt** vom Datenbank-Backup auf (z. B. in deinem Passwortmanager), sonst schützt er nichts.
 
 ## 3. Starten
 

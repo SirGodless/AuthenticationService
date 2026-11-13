@@ -35,6 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
         "app.argon2.memory-kib=19456",
         "app.argon2.iterations=2",
         "app.totp-encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "app.password-pepper-key=QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=",
         "app.password-blocklist-file=src/test/resources/blocklist-test.txt",
         // Mails im Test sofort statt im Hintergrund senden
         "app.mail.async=false"

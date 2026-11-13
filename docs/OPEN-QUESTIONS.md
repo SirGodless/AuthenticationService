@@ -25,7 +25,6 @@ Stand: nach Pepper und Umschnitt der Migrationen (13.11.2026).
 - **[U]** Name des Menüpunkts für Reverse DNS in der Hetzner-Oberfläche.
 - **[U]** Quelle und Nutzungsbedingungen der NCSC-Liste selbst (SecLists steht unter MIT, die Liste stammt vom UK NCSC).
 - **[U]** `pages.nist.gov` war nicht erreichbar, der NIST-Text stammt aus dem offiziellen GitHub-Repo von NIST.
-- **[U]** Beide Starter-Namen für den Authorization Server (Klärung zu Beginn von Etappe 3).
 - **[U]** `caddy_net` und `/opt/containers/` aus deinen Infrastruktur-Notizen (das Subnetz ist bestätigt).
 - **[U]** Docker-Build auf deinem Server (ich konnte ihn nur mit einem Umweg für das Proxy-Zertifikat der Sitzung testen).
 - **[U]** Dauer eines Argon2-Hashs auf deinem Zielsystem (Log beim Start prüfen).

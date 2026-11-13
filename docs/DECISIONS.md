@@ -11,6 +11,7 @@ Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahm
 | [backend-technology.md](decisions/backend-technology.md) | Versionen, Spring, Datenbankzugriff, Fehlercodes |
 | [data-model.md](decisions/data-model.md) | Tabellen, Trennung personenbezogener Daten |
 | [first-admin-setup.md](decisions/first-admin-setup.md) | Setup-Link, erster Admin, 2FA, Wiederherstellungscodes |
+| [hub-ui-authentication.md](decisions/hub-ui-authentication.md) | Vorschlag: Wie sich die Hub-UI an der API anmeldet (Frage vor Etappe 3) |
 | [login-and-sessions.md](decisions/login-and-sessions.md) | Anmeldung, Sitzungen, Cookies, CSRF |
 | [rate-limits.md](decisions/rate-limits.md) | Limits, echte Besucher-IP |
 | [passwords.md](decisions/passwords.md) | Passwortregeln nach NIST, Sperrliste, Kontextwörter |

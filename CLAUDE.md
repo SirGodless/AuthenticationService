@@ -170,7 +170,7 @@ Dienste (Clients) und Hosts: [A] laut Joshuas Infrastruktur-Notizen, vor Verwend
 - [E] Die UI-Sprache ist pro Account einstellbar. Standard ist Englisch, als Alternative gibt es Deutsch. Alle Texte (UI, Fehlermeldungen, Mails) liegen in Sprachdateien (`en` und `de`), nichts steht fest im Code. Weitere Sprachen sollen später leicht ergänzbar sein.
 - [A] Die Sprache wird als Feld am Account gespeichert (`en` oder `de`) und in der Profilseite umgestellt. Mails gehen in der Sprache des Accounts. Vor dem Login (Login, Registrierung, Setup, Passwort-Reset) gibt es einen Sprachumschalter, Standard Englisch, die Wahl wird nur im Browser gemerkt. Bei der Registrierung wird die gewählte Sprache als Account-Sprache gespeichert, die Bestätigungsmail kommt in dieser Sprache. Beim Setup des ersten Admins gilt dasselbe.
 - [A] Keine externen Schriften oder CDNs (alles selbst hosten). Grundlegende Barrierefreiheit (Kontrast, Tastaturbedienung).
-- [O] Wie sich die Hub-UI gegenüber der API authentifiziert (z. B. als öffentlicher OIDC-Client mit PKCE oder über das Backend), ist offen. Mache vor Etappe 3 einen Vorschlag mit Begründung in `docs/DECISIONS.md` und frage Joshua.
+- [A] Hub-UI an der API: Sitzungs-Cookie von `auth.anfall.net`, API-Aufrufe aus dem Hub mit CORS nur für `anfall.net` (Vorschlag und Begründung in `docs/decisions/hub-ui-authentication.md`, Joshua hat keine Variante gewählt und um eine Empfehlung gebeten).
 
 ## 9. Protokoll (Audit-Log)
 
@@ -206,7 +206,6 @@ Jede Etappe: Branch, Tests, PR, Zusammenfassung mit Annahmen und offenen Fragen,
 
 - [O] E-Mail-Änderung durch User (nicht besprochen, nicht bauen).
 - [O] Passkeys, Löschfunktion, Einbetten, Pelican-Anbindung, Dienste ohne OIDC.
-- [O] Anmeldung der Hub-UI an der API (siehe Abschnitt 8).
 - [O] Light Mode.
 - [U] Audiobookshelf: Rollen aus Claims, Kriterien von "Match existing users by".
 - [U] Wie schnell Sperren in Audiobookshelf und Vaultwarden wirken.

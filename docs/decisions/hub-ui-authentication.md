@@ -1,6 +1,6 @@
 # Wie sich die Hub-UI an der API anmeldet
 
-Kennzeichnung: **[O]** offen, Vorschlag wartet auf Joshuas Antwort. Gefragt wird vor Etappe 3, weil `CLAUDE.md` (Abschnitt 8) das so verlangt.
+Kennzeichnung: **[A]** Variante 1 ist die Annahme, Joshua hat (13.11.2026) keine Variante gewählt, sondern um eine ehrliche Empfehlung gebeten. Sie wartet auf Bestätigung. Gefragt wurde vor Etappe 3, weil `CLAUDE.md` (Abschnitt 8) das so verlangt. Etappe 3 hängt nicht davon ab.
 
 ## Ausgangslage
 
@@ -32,6 +32,17 @@ Caddy leitet `anfall.net/api/*` an das Backend. Das Backend führt den OIDC-Flow
 
 - **Vorteil:** Stärkste Trennung, auch bei anderer Domain nutzbar, kein CORS.
 - **Nachteile:** Zwei Sitzungen (auth und hub), das Backend wird Client seiner selbst, mehr bewegliche Teile und ein zusätzlicher Caddy-Block. Für einen Einzelentwickler und eine kleine Userbase der aufwendigste Weg ohne Nutzen, solange Hub und Auth auf einer Site liegen.
+
+## Warum der Login auf `auth.anfall.net` liegt (Joshuas Frage)
+
+Das ist durch OIDC vorgegeben, keine Geschmacksfrage. Die Dienste (Vaultwarden, Audiobookshelf) schicken den Browser an die Issuer-Adresse `https://auth.anfall.net` (**[E]**, fest). Dort muss der Login stattfinden und die Sitzung gelten, damit der Authorize-Endpunkt weiß, wer da ist (Single Sign-on). Ein Login auf `anfall.net` ginge nur mit einem Cookie für alle Subdomänen (`Domain=anfall.net`). Das würde jeder Dienst auf `*.anfall.net` mitlesen können, ein Fehler dort wäre ein Fehler bei allen. Google, Keycloak und andere machen es wie hier: eine eigene Adresse für den Login, die Anwendungen woanders.
+
+## Ehrliche Einordnung der Varianten (ohne Rücksicht auf Aufwand)
+
+- Rein nach Lehrbuch (IETF-Empfehlung für Browser-Anwendungen) ist **Variante 3 (BFF)** das Sauberste, weil die Tokens nie im Browser ankommen und sie auch über Domaingrenzen hinweg funktioniert.
+- **Der Sicherheitsunterschied zu Variante 1 ist hier aber klein.** Bei Variante 1 liegt auch kein Token im Browser-JavaScript. Bei einer XSS-Lücke im Hub kann ein Angreifer in **jeder** Variante (auch BFF) die API als der angemeldete User aufrufen, solange die Seite offen ist. BFF schützt vor Token-Diebstahl, den es in Variante 1 nicht gibt.
+- **Variante 2** ist ohne Aufwand betrachtet die schwächste, weil die Tokens im JavaScript-Speicher liegen.
+- Der Hub könnte auch ganz auf `auth.anfall.net` liegen (gleiche Origin, kein CORS). Das widerspricht aber der Vorgabe, dass der Hub auf `anfall.net` liegt (**[E]**).
 
 ## Empfehlung
 

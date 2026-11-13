@@ -15,7 +15,7 @@ Stand: nach Pepper und Umschnitt der Migrationen (13.11.2026).
 
 ## Zu entscheiden
 
-1. **Hub-UI an der API (vor Etappe 3):** Vorschlag in `docs/decisions/hub-ui-authentication.md`, Antwort steht aus.
+1. **Hub-UI an der API:** Ich gehe von Variante 1 aus (Sitzungs-Cookie, CORS für `anfall.net`), siehe `docs/decisions/hub-ui-authentication.md`. Gilt als Annahme, bis du sie bestätigst. Gebaut wird sie erst mit der Hub-Schnittstelle (Etappe 4 bis 6).
 2. **Zeitzone für "0 Uhr" beim Backup:** Ich nehme Europe/Berlin an, sag Bescheid, wenn es UTC sein soll (reicht bis Etappe 7).
 
 ## Nicht verifiziert

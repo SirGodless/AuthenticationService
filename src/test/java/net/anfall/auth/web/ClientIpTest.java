@@ -10,9 +10,9 @@ import org.springframework.mock.web.MockHttpServletRequest;
 class ClientIpTest {
 
     private final ClientIp clientIp = new ClientIp(new AppProperties(
-            "https://auth.example.test", "k", "p", "i", null, null, "f", "no-reply@example.test",
+            "https://auth.example.test", "k", "p", "o", "i", null, null, "f", "no-reply@example.test",
             new AppProperties.Session(null, null, null), new AppProperties.Tokens(null, null),
-            new AppProperties.Limits(5, null, null, 3, null),
+            new AppProperties.Limits(5, null, null, 3, null), null,
             List.of("172.16.0.0/12", "127.0.0.0/8", "fc00::/7")));
 
     private MockHttpServletRequest request(String remote, String forwarded) {

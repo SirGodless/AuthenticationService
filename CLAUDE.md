@@ -35,7 +35,7 @@ Nicht Teil der aktuellen Etappen: Löschfunktion für Konten, Einbetten der Dien
 ## 2. Architektur und Deployment
 
 - [E] UI und Backend laufen in getrennten Containern. Alles läuft hinter dem Reverse-Proxy Caddy.
-- [E] Backend: Java mit Spring Boot und Spring Authorization Server (kein Kotlin, Joshua soll den Code lesen können). Verwende die aktuelle Version. Laut Spring-Doku ist der Authorization Server in Spring Security 7.0 aufgegangen und 1.5.x ist die letzte eigenständige Generation. [U] Prüfe die aktuelle Doku, bevor du Abhängigkeiten festlegst.
+- [E] Backend: Java mit Spring Boot und Spring Authorization Server (kein Kotlin, Joshua soll den Code lesen können). Verwende die aktuelle Version. Laut Spring-Doku ist der Authorization Server in Spring Security 7.0 aufgegangen und 1.5.x ist die letzte eigenständige Generation. Geprüft: 7.1.2 (Boot 4.1.2), Starter `spring-boot-starter-security-oauth2-authorization-server`.
 - [E] UI: einfaches HTML, CSS und JavaScript ohne großes Framework.
 - [A] Java 21 (in der Cloud-Umgebung vorinstalliert), PostgreSQL als Datenbank in einem eigenen Container, Flyway für Datenbank-Migrationen.
 - [E] Der UI-Container liefert die statischen Dateien über einen kleinen Webserver aus. Welcher (z. B. nginx oder ein schlanker Caddy mit `file_server`), entscheidest du und begründest es in `docs/DECISIONS.md`. Joshua kennt Caddy nur als Reverse-Proxy und will sich damit nicht weiter befassen. Entscheidend ist nur: Der Container lauscht intern per einfachem HTTP auf einem festen Port (kein HTTPS, keine veröffentlichten Ports) und ist über `caddy_net` per `reverse_proxy userhub-ui:<port>` erreichbar. Zertifikate und HTTPS übernimmt allein der bestehende Caddy.
@@ -136,7 +136,7 @@ Sitzungen und Tokens
 - [E] Der Provider ist vollständig OIDC-konform: Discovery, Authorization, Token, JWKS, UserInfo, Refresh-Tokens. `sub` ist die User-UUID.
 - [A] Authorization-Code-Flow mit PKCE. Signierschlüssel sind rotierbar (mehrere Schlüssel im JWKS).
 - [E] Jeder Client verlangt eine Berechtigung. Fehlt sie, gibt der Provider keinen Code aus und zeigt eine verständliche Seite in der Sprache des Users. Die Berechtigung wird auch beim Token-Refresh geprüft, damit Entzug und Bann wirken.
-- [U] Spring-Doku: OIDC ist im Authorization Server standardmäßig deaktiviert und muss aktiviert werden. Für den UserInfo-Endpoint wird ein `JwtDecoder`-Bean verlangt. Prüfe das in der aktuellen Doku.
+- Geprüft (13.11.2026, Quelltexte von Spring Security 7.1.2 und Tests): OIDC ist im Authorization Server standardmäßig deaktiviert und muss mit `oidc(...)` eingeschaltet werden. Für den UserInfo-Endpoint wird ein `JwtDecoder`-Bean verlangt. Details in `docs/decisions/oidc-provider.md`.
 - [E] Claims: Vaultwarden braucht `iss` und `sub`, `email`, `email_verified` und `preferred_username`. Scopes: `openid`, `profile`, `email`, `offline_access` (für Refresh-Tokens). Der Provider meldet `email_verified=true` nur für bestätigte Adressen.
 
 Dienste (Clients) und Hosts: [A] laut Joshuas Infrastruktur-Notizen, vor Verwendung bestätigen:

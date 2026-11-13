@@ -1,6 +1,6 @@
 # Entscheidungen und Annahmen (Inhaltsverzeichnis)
 
-Stand: Zwischenetappe nach Etappe 2 (13.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
+Stand: Etappe 3 (13.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
 Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahme (wartet auf Bestätigung), **[U]** nicht oder nicht ganz verifiziert.
 
 ## Themen
@@ -12,6 +12,7 @@ Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahm
 | [data-model.md](decisions/data-model.md) | Tabellen, Trennung personenbezogener Daten |
 | [first-admin-setup.md](decisions/first-admin-setup.md) | Setup-Link, erster Admin, 2FA, Wiederherstellungscodes |
 | [hub-ui-authentication.md](decisions/hub-ui-authentication.md) | Vorschlag: Wie sich die Hub-UI an der API anmeldet (Frage vor Etappe 3) |
+| [oidc-provider.md](decisions/oidc-provider.md) | OIDC-Provider: Ablauf, Zugriffsentscheidung, Tokens, Clients, Signierschlüssel, Widerruf |
 | [login-and-sessions.md](decisions/login-and-sessions.md) | Anmeldung, Sitzungen, Cookies, CSRF |
 | [rate-limits.md](decisions/rate-limits.md) | Limits, echte Besucher-IP |
 | [passwords.md](decisions/passwords.md) | Passwortregeln nach NIST, Sperrliste, Kontextwörter |
@@ -35,10 +36,12 @@ Alle **[A]**-Punkte in den Themen-Dateien. Die größten:
 - Was "Ableitung" bei Kontextwörtern heißt (`passwords.md`).
 - Bounces werden verworfen (`mail.md`, **[E]** wegen fehlendem Posteingang).
 - Zeitzone "0 Uhr" für das Backup (`containers-and-deployment.md`).
+- OIDC (`oidc-provider.md`): Refresh-Token auch ohne `offline_access`, ID-Token 30 Minuten, nur vertrauliche Clients, PKCE und keine Zustimmungsseite für alle, RS256 mit RSA 2048, `client_id` = Dienst-Key.
+- Die Rechte-Tabellen aus Etappe 3 sind eine Vorstufe, Etappe 4 baut sie aus.
 
 ## Bewusst noch nicht gebaut
 
 - 2FA einrichten, neu erzeugen und abschalten für normale User: kommt mit Etappe 4, weil dort die Pflicht-2FA für Admin-Funktionen greift (siehe `OPEN-QUESTIONS.md`).
-- Registrierung (Etappe 5), OIDC (Etappe 3), Rechte und Rollen mit Dashboard (Etappe 4), Hub-UI (Etappe 6).
+- Registrierung (Etappe 5), Rechte und Rollen mit Dashboard (Etappe 4), Hub-UI (Etappe 6).
 - Backup-Container (Konzept steht, Umsetzung Etappe 7).
 - Passwort-Reset durch Admins erzwingen (Etappe 4, bestätigt).

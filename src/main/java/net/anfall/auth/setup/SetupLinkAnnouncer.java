@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(1)
-@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${app.cli.command:}'.isEmpty()")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("!${app.cli.enabled:false}")
 class SetupLinkAnnouncer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SetupLinkAnnouncer.class);

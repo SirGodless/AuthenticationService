@@ -1,8 +1,10 @@
 package net.anfall.auth.security;
 
 import net.anfall.auth.login.session.SessionSecurityContextRepository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,9 +16,11 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 /** Wer darf welche Adresse aufrufen, CSRF-Schutz und die Anbindung der Sitzungen. */
 @Configuration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 class SecurityConfig {
 
     @Bean
+    @Order(2)
     SecurityFilterChain filterChain(HttpSecurity http, SessionSecurityContextRepository contexts) throws Exception {
         // CSRF-Schutz für alles, was eine Sitzung nutzt: Der Token steht in einem lesbaren Cookie,
         // die UI schickt ihn als Header X-XSRF-TOKEN zurück. Ein fremder Browser-Tab kennt ihn nicht.

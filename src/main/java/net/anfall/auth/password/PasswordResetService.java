@@ -11,6 +11,7 @@ import net.anfall.auth.config.AppProperties;
 import net.anfall.auth.emailtoken.EmailTokens;
 import net.anfall.auth.login.session.SessionService;
 import net.anfall.auth.mail.MailService;
+import net.anfall.auth.oidc.TokenRevocationService;
 import net.anfall.auth.password.check.PasswordContext;
 import net.anfall.auth.ratelimit.Throttle;
 import net.anfall.auth.web.ApiException;
@@ -32,10 +33,12 @@ public class PasswordResetService {
     private final AccountRepository accounts;
     private final AccountService accountService;
     private final SessionService sessions;
+    private final TokenRevocationService tokenRevocation;
 
     public PasswordResetService(EmailTokens tokens, MailService mail, Throttle throttle, AuditLog audit,
                                 AppProperties props, PasswordService passwords, AccountRepository accounts,
-                                AccountService accountService, SessionService sessions) {
+                                AccountService accountService, SessionService sessions,
+                                TokenRevocationService tokenRevocation) {
         this.tokens = tokens;
         this.mail = mail;
         this.throttle = throttle;
@@ -45,6 +48,7 @@ public class PasswordResetService {
         this.accounts = accounts;
         this.accountService = accountService;
         this.sessions = sessions;
+        this.tokenRevocation = tokenRevocation;
     }
 
     /**
@@ -93,7 +97,9 @@ public class PasswordResetService {
         tokens.consume(token, EmailTokens.Purpose.PASSWORD_RESET)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "invalid_link"));
         accountService.changePassword(userId, newPassword);
+        // Ein Reset beendet alle Sitzungen und alle Refresh-Tokens (Abschnitt 3 der Spezifikation)
         int ended = sessions.revokeAll(userId);
-        audit.record(userId, userId, "password.reset", Map.of("sessions_ended", ended), ip);
+        int revoked = tokenRevocation.revokeAll(userId);
+        audit.record(userId, userId, "password.reset", Map.of("sessions_ended", ended, "authorizations_revoked", revoked), ip);
     }
 }

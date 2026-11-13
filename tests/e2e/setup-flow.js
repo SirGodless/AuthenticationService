@@ -1,11 +1,14 @@
 // Ende-zu-Ende-Test im echten Browser (Playwright): Setup des ersten Admins, danach Login mit 2FA,
 // "Passwort vergessen" mit Mail aus Mailpit, neues Passwort, Wiederherstellungscode, Abmelden.
-// Aufruf: node setup-flow.js <IP des Test-Caddy> <Setup-Token> <Mailpit-Kommando>
-// Der Hostname auth.test wird im Browser auf die IP gelegt. Das Mail-Kommando liefert Mailpit-JSON auf stdout.
+// Danach: Dienst anlegen (auth-admin im Container), OIDC-Anmeldung eines Dienstes mit PKCE durch den Browser,
+// Token-Austausch, "Kein Zugang"-Seite, Schlüsselrotation.
+// Aufruf: node setup-flow.js <IP des Test-Caddy> <Setup-Token> <Mailpit-Kommando> <Backend-Kommando>
+// Der Hostname auth.test wird im Browser auf die IP gelegt. Das Mail-Kommando liefert Mailpit-JSON auf stdout,
+// das Backend-Kommando führt ein Programm im Backend-Container aus (z. B. "docker exec auth-backend").
 const { chromium } = require('playwright');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
-const [ip, token, mailCmd] = process.argv.slice(2);
+const [ip, token, mailCmd, backendCmd] = process.argv.slice(2);
 const base = 'https://auth.test';
 
 function totp(b32) {
@@ -142,6 +145,72 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p3.waitForSelector('#signed-in:not([hidden])');
   ok(true, 'Login: Anmeldung mit Wiederherstellungscode (E-Mail als Kennung)');
   await p3.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/home.png' : undefined });
+
+  // ---------- OIDC: ein Dienst meldet einen Nutzer an ----------
+  const admin = (args) => execSync(`${backendCmd} auth-admin ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const redirect = `${base}/e2e-callback`;
+  const reg = admin(`register-service e2e "E2E Dienst" ${redirect}`);
+  const clientSecret = reg.match(/Client-Secret:\s+(\S+)/)[1];
+  ok(/Client-ID:\s+e2e/.test(reg) && clientSecret.length === 43, 'auth-admin register-service im echten Container (ohne Webserver gestartet)');
+  const reg2 = admin(`register-service gesperrt "Gesperrter Dienst" ${base}/gesperrt-callback`);
+  ok(reg2.includes('Dienst angelegt'), 'auth-admin: zweiter Dienst, für den niemand das Recht hat');
+  ok(admin('grant-service joshua e2e').includes('Zugang'), 'auth-admin grant-service: joshua darf den ersten Dienst');
+
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  const authorize = (client, cb) => `${base}/oauth2/authorize?response_type=code&client_id=${client}&redirect_uri=${encodeURIComponent(cb)}` +
+    `&scope=${encodeURIComponent('openid profile email offline_access')}&state=xyz&code_challenge=${challenge}&code_challenge_method=S256`;
+
+  let { c: c4, p: p4 } = await fresh();
+  await p4.goto(authorize('e2e', redirect));
+  await p4.waitForSelector('#step-password:not([hidden])');
+  ok(p4.url().includes('/login?continue=%2Foauth2%2Fauthorize%3F'), 'OIDC: nicht angemeldet, Weiterleitung zur Login-Seite mit Rücksprung-Adresse');
+  await p4.fill('#identifier', 'joshua'); await p4.fill('#password', PW2); await p4.click('#step-password button[type=submit]');
+  await p4.waitForSelector('#step-code:not([hidden])');
+  await p4.fill('#code', recovery[1]); await p4.click('#step-code button[type=submit]');
+  await p4.waitForURL(/e2e-callback\?/);
+  const back = new URL(p4.url());
+  ok(back.searchParams.get('state') === 'xyz' && back.searchParams.get('code'), 'OIDC: nach dem Login zurück zum Dienst, mit Code und state');
+  const tokens = await p4.evaluate(async ({ code, verifier, redirect, clientSecret }) => {
+    const r = await fetch('/oauth2/token', { method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + btoa('e2e:' + clientSecret) },
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: redirect, code_verifier: verifier }) });
+    return { status: r.status, body: await r.json() };
+  }, { code: back.searchParams.get('code'), verifier, redirect, clientSecret });
+  ok(tokens.status === 200 && tokens.body.id_token && tokens.body.refresh_token, 'OIDC: Code gegen Tokens getauscht (ID-Token, Access-Token, Refresh-Token)');
+  const claims = JSON.parse(Buffer.from(tokens.body.id_token.split('.')[1], 'base64url').toString());
+  ok(claims.iss === base && claims.email === 'joshua@example.com' && claims.email_verified === true && claims.preferred_username === 'joshua' && /^[0-9a-f-]{36}$/.test(claims.sub),
+    'OIDC: ID-Token mit iss, sub (UUID), email, email_verified, preferred_username');
+
+  const info = await p4.evaluate(async (at) => { const r = await fetch('/userinfo', { headers: { Authorization: 'Bearer ' + at } }); return { status: r.status, body: await r.json() }; }, tokens.body.access_token);
+  ok(info.status === 200 && info.body.email === 'joshua@example.com', 'OIDC: UserInfo liefert die Claims');
+  const refresh = (rt) => p4.evaluate(async ({ rt, clientSecret }) => {
+    const r = await fetch('/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + btoa('e2e:' + clientSecret) },
+      body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: rt }) });
+    return { status: r.status, body: await r.json() };
+  }, { rt, clientSecret });
+  const refreshed = await refresh(tokens.body.refresh_token);
+  ok(refreshed.status === 200 && refreshed.body.refresh_token !== tokens.body.refresh_token, 'OIDC: Refresh funktioniert und rotiert den Refresh-Token');
+
+  // Schlüsselrotation im echten Container: altes Token bleibt prüfbar, neue Tokens nutzen den neuen Schlüssel
+  const jwks1 = await p4.evaluate(async () => (await (await fetch('/oauth2/jwks')).json()).keys.map(k => k.kid));
+  ok(admin('rotate-signing-key').includes('Neuer Signierschlüssel'), 'auth-admin rotate-signing-key im echten Container');
+  const jwks2 = await p4.evaluate(async () => (await (await fetch('/oauth2/jwks')).json()).keys.map(k => k.kid));
+  const afterRotation = await refresh(refreshed.body.refresh_token);
+  const kidOf = (jwt) => JSON.parse(Buffer.from(jwt.split('.')[0], 'base64url').toString()).kid;
+  ok(jwks1.length === 1 && jwks2.length === 2 && jwks2.includes(jwks1[0]), 'OIDC: nach der Rotation stehen alter und neuer Schlüssel im JWKS');
+  ok(afterRotation.status === 200 && kidOf(afterRotation.body.id_token) !== jwks1[0] && kidOf(tokens.body.id_token) === jwks1[0], 'OIDC: neue Tokens mit neuem Schlüssel, altes ID-Token trägt den alten');
+
+  // Ein Dienst, für den das Recht fehlt: kein Code, verständliche Seite
+  await p4.goto(authorize('gesperrt', `${base}/gesperrt-callback`));
+  await p4.waitForSelector('#service');
+  ok(p4.url().startsWith(`${base}/access-denied?service=`) && (await p4.textContent('#service')) === 'Gesperrter Dienst', 'OIDC: ohne Recht kein Code, Seite "Kein Zugang" mit Dienstnamen');
+  ok((await p4.textContent('h1')) === 'No access', 'OIDC: Seite "Kein Zugang" in der Sprache der Seite (Englisch)');
+  await p4.selectOption('#lang', 'de');
+  await p4.waitForFunction(() => document.querySelector('h1').textContent === 'Kein Zugang');
+  ok(true, 'OIDC: Seite "Kein Zugang" umschaltbar auf Deutsch');
+  ok(!p4.url().includes('code='), 'OIDC: kein Code in der Adresse');
+  await c4.close();
 
   // ---------- Abmelden ----------
   await p3.click('#logout');

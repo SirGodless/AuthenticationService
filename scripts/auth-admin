@@ -2,10 +2,6 @@
 # Betreiber-Befehle im Backend-Container (siehe README):
 #   docker compose exec auth-backend auth-admin reset-2fa <username>
 # Startet das Backend ohne Webserver, führt den Befehl aus und beendet sich.
-if [ $# -lt 1 ]; then
-  echo "Aufruf: auth-admin reset-2fa <username>" >&2
-  exit 2
-fi
 exec java -XX:MaxRAMPercentage=50 -jar /app/app.jar \
   --spring.main.web-application-type=none --spring.main.banner-mode=off \
-  --logging.level.root=WARN --app.cli.command="$1" --app.cli.username="${2:-}"
+  --logging.level.root=WARN --app.cli.enabled=true "$@"

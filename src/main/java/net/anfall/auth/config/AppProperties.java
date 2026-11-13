@@ -18,6 +18,8 @@ public record AppProperties(
          * Muss ein anderer Schlüssel sein als der für TOTP und getrennt vom Datenbank-Backup aufbewahrt werden.
          */
         String passwordPepperKey,
+        /** Base64 eines 32-Byte-Schlüssels, der die privaten Signierschlüssel des OIDC-Providers verschlüsselt. */
+        String oidcKeyEncryptionKey,
         /** Name, der in der Authenticator-App angezeigt wird. */
         @DefaultValue("anfall.net") String totpIssuer,
         @DefaultValue("PT1H") Duration setupTokenTtl,
@@ -29,6 +31,7 @@ public record AppProperties(
         @DefaultValue Session session,
         @DefaultValue Tokens tokens,
         @DefaultValue Limits limits,
+        @DefaultValue Oidc oidc,
         /**
          * Adressbereiche, deren X-Forwarded-For wir glauben (das Docker-Netz von Caddy, auf Joshuas Server
          * 172.22.0.0/16 laut "docker network inspect caddy_net"). Von anderen Adressen wird der Header ignoriert,
@@ -70,5 +73,14 @@ public record AppProperties(
             @DefaultValue("3") int mailRequestsMax,
             /** ... innerhalb dieser Zeit. */
             @DefaultValue("PT1H") Duration mailRequestsWindow) {
+    }
+
+    /** Laufzeiten der Tokens des OIDC-Providers. */
+    public record Oidc(
+            @DefaultValue("PT10M") Duration accessTokenTtl,
+            /** Der Refresh-Token wird bei jeder Nutzung erneuert (Rotation), die Frist läuft also immer neu. */
+            @DefaultValue("P30D") Duration refreshTokenTtl,
+            /** So lange bleibt ein ausgemusterter Signierschlüssel im JWKS (für noch gültige ID-Tokens). */
+            @DefaultValue("P2D") Duration retiredKeyGrace) {
     }
 }

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 /** Prüft beim Start die Konfiguration und misst die Dauer eines Passwort-Hashs (Benchmark auf dem Zielsystem). */
 @Component
 @Order(0)
-@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${app.cli.command:}'.isEmpty()")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("!${app.cli.enabled:false}")
 class StartupChecks implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(StartupChecks.class);
@@ -28,8 +28,14 @@ class StartupChecks implements ApplicationRunner {
         if (props.publicBaseUrl() == null || !props.publicBaseUrl().startsWith("http")) {
             throw new IllegalStateException("PUBLIC_BASE_URL fehlt oder ist ungültig");
         }
-        if (props.passwordPepperKey() != null && props.passwordPepperKey().equals(props.totpEncryptionKey())) {
-            throw new IllegalStateException("PASSWORD_PEPPER_KEY und TOTP_ENCRYPTION_KEY müssen verschiedene Schlüssel sein");
+        // Jeder Schlüssel hat einen eigenen Zweck. Mit einem gemeinsamen Wert würde ein Fehler alle drei treffen.
+        var keys = new java.util.HashSet<String>();
+        for (String key : java.util.List.of(props.totpEncryptionKey(), props.passwordPepperKey(),
+                props.oidcKeyEncryptionKey())) {
+            if (key != null && !keys.add(key)) {
+                throw new IllegalStateException("TOTP_ENCRYPTION_KEY, PASSWORD_PEPPER_KEY und OIDC_KEY_ENCRYPTION_KEY "
+                        + "müssen verschiedene Schlüssel sein");
+            }
         }
         long start = System.nanoTime();
         encoder.encode("benchmark-only-not-a-real-password");

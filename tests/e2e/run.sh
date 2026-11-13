@@ -31,4 +31,4 @@ TOKEN=$(docker logs auth-backend 2>&1 | grep -o 'SETUP-LINK.*' | tail -1 | grep 
 [ -n "$TOKEN" ] || { echo "Kein Setup-Link im Log gefunden"; exit 1; }
 
 # Mailpit hat keinen veröffentlichten Port: Wir fragen es aus dem Backend-Container (gleiches Netzwerk)
-node tests/e2e/setup-flow.js "$IP" "$TOKEN" "docker exec auth-backend wget -qO- http://mailpit:8025"
+node tests/e2e/setup-flow.js "$IP" "$TOKEN" "docker exec auth-backend wget -qO- http://mailpit:8025" "docker exec auth-backend"

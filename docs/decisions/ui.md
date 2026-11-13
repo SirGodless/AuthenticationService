@@ -8,5 +8,6 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - **[A] Sprache:** Standard Englisch, Umschalter oben rechts, Wahl nur im Browser gemerkt. Bei Abschluss des Setups wird die gewählte Sprache als Account-Sprache gespeichert.
 - Styling ist bewusst schlicht, CSS-Variablen, Dark Mode zuerst. Der Stil kommt in Etappe 6.
 
+- **Etappe 3:** Neue Seite `/access-denied` ("Kein Zugang", Dienstname aus dem Parameter `service`, nur als Text eingesetzt). Die Login-Seite folgt dem Parameter `continue` nur für Adressen, die mit `/oauth2/authorize?` beginnen (`js/shared/redirect.js`), damit ein Dienst den Nutzer nach dem Login dorthin zurückbringt, ohne dass ein offener Redirect entsteht.
 - **Aufbau von `public/` (13.11.2026):** Siehe `docs/decisions/code-structure.md`.
 - **[A] Passwortfelder (NIST SP 800-63B-4):** Alle Passwortfelder haben "Passwort anzeigen", Einfügen ist nicht gesperrt, Passwortmanager funktionieren (`autocomplete`-Angaben), unter neuen Passwörtern steht eine Hilfestellung. Das Backend liefert bei Ablehnung einen Grund, die UI zeigt ihn an.

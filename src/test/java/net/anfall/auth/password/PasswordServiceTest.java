@@ -16,8 +16,8 @@ class PasswordServiceTest {
     // OWASP-Minimum, damit der Test schnell bleibt
     private final PasswordService service = new PasswordService(new Argon2PasswordEncoder(16, 32, 1, 19456, 2),
             p -> Set.of("password1234567890", "ÄÖÜ-geheim-passwort").contains(p),
-            new AppProperties("https://auth.anfall.net", "k", PEPPER, "anfall.net", null, null, null, "no-reply@anfall.net",
-                    null, null, null, null));
+            new AppProperties("https://auth.anfall.net", "k", PEPPER, "o", "anfall.net", null, null, null,
+                    "no-reply@anfall.net", null, null, null, null, null));
 
     @Test
     void lengthBlocklistAndContextAreChecked() {
@@ -71,8 +71,8 @@ class PasswordServiceTest {
         String hash = service.hash("some long passphrase");
         String otherKey = Base64.getEncoder().encodeToString("ABCDEFGHIJKLMNOPQRSTUVWXYZ012345".getBytes());
         PasswordService other = new PasswordService(new Argon2PasswordEncoder(16, 32, 1, 19456, 2), p -> false,
-                new AppProperties("https://auth.anfall.net", "k", otherKey, "anfall.net", null, null, null,
-                        "no-reply@anfall.net", null, null, null, null));
+                new AppProperties("https://auth.anfall.net", "k", otherKey, "o", "anfall.net", null, null, null,
+                        "no-reply@anfall.net", null, null, null, null, null));
         assertThat(other.matches("some long passphrase", hash)).isFalse();
     }
 

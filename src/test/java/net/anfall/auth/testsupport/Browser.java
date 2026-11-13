@@ -17,7 +17,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class Browser {
 
     /** Antwort mit Status, Body und den rohen Set-Cookie-Zeilen. */
-    public record Result(int status, String body, List<String> setCookies) {
+    public record Result(int status, String body, List<String> setCookies, String location) {
         public boolean ok() {
             return status == 200;
         }
@@ -53,6 +53,11 @@ public class Browser {
 
     public Result get(String path) throws Exception {
         return send(MockMvcRequestBuilders.get(path), null);
+    }
+
+    /** GET mit einer fertig kodierten Adresse (wird nicht noch einmal kodiert). */
+    public Result get(java.net.URI uri) throws Exception {
+        return send(MockMvcRequestBuilders.get(uri), null);
     }
 
     /** Wie ein Seitenaufruf, damit das CSRF-Cookie gesetzt wird (die UI ruft /api/auth/me beim Laden). */
@@ -99,6 +104,6 @@ public class Browser {
                 cookies.put(first[0], first.length > 1 ? first[1] : "");
             }
         }
-        return new Result(res.getStatus(), res.getContentAsString(), setCookies);
+        return new Result(res.getStatus(), res.getContentAsString(), setCookies, res.getHeader("Location"));
     }
 }

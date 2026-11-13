@@ -36,6 +36,7 @@ import tools.jackson.databind.json.JsonMapper;
         "app.argon2.iterations=2",
         "app.totp-encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "app.password-pepper-key=QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=",
+        "app.oidc-key-encryption-key=Q0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0M=",
         "app.password-blocklist-file=src/test/resources/blocklist-test.txt",
         // Mails im Test sofort statt im Hintergrund senden
         "app.mail.async=false"
@@ -47,8 +48,8 @@ public abstract class IntegrationTestBase {
     /** Name des Sitzungs-Cookies. */
     protected static final String SID = "__Host-sid";
 
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
-    protected static final GreenMail GREEN_MAIL = new GreenMail(ServerSetupTest.SMTP.dynamicPort());
+    public static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+    public static final GreenMail GREEN_MAIL = new GreenMail(ServerSetupTest.SMTP.dynamicPort());
 
     static {
         POSTGRES.start();
@@ -74,7 +75,12 @@ public abstract class IntegrationTestBase {
     void cleanState() throws Exception {
         // permissions und roles bleiben (kommen aus der Migration)
         jdbc.sql("TRUNCATE audit_log, recovery_codes, user_totp, user_credentials, user_pii, user_roles, "
-                + "setup_tokens, login_sessions, email_tokens, throttle, users CASCADE").update();
+                + "setup_tokens, login_sessions, email_tokens, throttle, role_permissions, user_permissions, services, "
+                + "oauth2_authorization, oauth2_registered_client, users CASCADE").update();
+        // Rechte, die beim Anlegen von Diensten entstehen (service.*), gehören nicht zu den eingebauten
+        jdbc.sql("DELETE FROM permissions WHERE NOT builtin").update();
+        // Ausgemusterte Signierschlüssel aus Rotationstests nicht in die nächsten Tests mitnehmen
+        jdbc.sql("DELETE FROM oidc_signing_keys WHERE retired_at IS NOT NULL").update();
         GREEN_MAIL.purgeEmailFromAllMailboxes();
     }
 

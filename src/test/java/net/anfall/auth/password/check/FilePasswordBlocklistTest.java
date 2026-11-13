@@ -39,6 +39,6 @@ class FilePasswordBlocklistTest {
     }
 
     private static AppProperties props(String blocklistFile) {
-        return new AppProperties("https://x", "k", "p", "i", null, null, blocklistFile, "no-reply@x", null, null, null, null);
+        return new AppProperties("https://x", "k", "p", "o", "i", null, null, blocklistFile, "no-reply@x", null, null, null, null, null);
     }
 }

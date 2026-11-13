@@ -15,6 +15,8 @@ Stand: nach Pepper und Umschnitt der Migrationen (13.11.2026).
 
 ## Zu entscheiden
 
+0. **OIDC (Etappe 3), drei kleine Entscheidungen, jeweils mit meiner Annahme:** (a) Refresh-Tokens gibt es auch ohne `offline_access` (nach der Spezifikation wäre es strenger, ich habe es lockerer gelassen, damit Dienste nicht überraschend keine Sitzung behalten). (b) ID-Token gilt 30 Minuten, der Access-Token 10. (c) Wenn ein Dienst "Abmelden" aufruft (`/connect/logout`), wird deine Anmeldung im Hub **nicht** beendet. Soll ein Logout im Dienst auch die Hub-Sitzung beenden? Das wäre sinnvoll, ist aber eine eigene Entscheidung (Single Logout), ich würde es zu Etappe 6 nehmen.
+
 1. **Hub-UI an der API:** Ich gehe von Variante 1 aus (Sitzungs-Cookie, CORS für `anfall.net`), siehe `docs/decisions/hub-ui-authentication.md`. Gilt als Annahme, bis du sie bestätigst. Gebaut wird sie erst mit der Hub-Schnittstelle (Etappe 4 bis 6).
 2. **Zeitzone für "0 Uhr" beim Backup:** Ich nehme Europe/Berlin an, sag Bescheid, wenn es UTC sein soll (reicht bis Etappe 7).
 

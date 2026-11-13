@@ -19,13 +19,16 @@ Kennzeichnung: **[E]** von Joshua entschieden. **[A]** Annahme.
 | `account` | Konten: anlegen, Eingaben prüfen, Zugriff auf die Kontotabellen |
 | `login` | Anmelden (Passwort, zweiter Schritt), Abmelden, "Wer bin ich" |
 | `login/session` | Anmeldesitzungen und ihre Anbindung an Spring Security |
+| `oidc` | OIDC-Provider: Filterkette, Anmeldung für den Provider, Rechteprüfung, Token-Anpassung, Signierschlüssel, Widerruf |
+| `service` | Dienste (Vaultwarden, ...): anlegen, Recht, OIDC-Client |
+| `permission` | Berechtigungen eines Users (wird mit Etappe 4 ausgebaut) |
 | `password` | Passwort-Regeln und Hashing, Passwort vergessen, Passwort ändern |
 | `password/check` | Die einzelnen Prüfungen (Länge, Sperrliste, Kontextwörter) |
 | `emailconfirmation` | E-Mail-Adresse bestätigen, Bestätigungsmail erneut senden |
 | `emailtoken` | Einmal-Links per Mail (gemeinsam von Bestätigung und Reset genutzt) |
 | `twofactor` | TOTP und Wiederherstellungscodes |
 | `setup` | Setup-Link und erster Admin |
-| `admincli` | Befehle für den Betreiber im Container |
+| `admincli` | Befehle für den Betreiber im Container, eine Klasse pro Befehl |
 | `audit` | Protokoll |
 | `ratelimit` | Zähler und Sperren |
 | `mail` | Mailversand und Mail-Texte |
@@ -34,13 +37,15 @@ Kennzeichnung: **[E]** von Joshua entschieden. **[A]** Annahme.
 | `config` | Einstellungen und Startprüfungen |
 | `web` | Gemeinsame Teile der API (Fehler, Antworten, Client-IP) |
 
-Spätere Etappen bekommen ihre eigenen Pakete: `invite` (Einladungslinks), `permission` (Rechte und Rollen), `oidc` (Provider, Clients).
+Spätere Etappen bekommen ihre eigenen Pakete: `invite` (Einladungslinks). `permission` wird mit Etappe 4 zu Rechten und Rollen ausgebaut.
 
 **Aufteilung großer Klassen.** Vorher waren `AuthController` (8 Schnittstellen), `LoginService` (Passwort, 2FA, TOTP-Prüfung, Abmelden), `SetupService` (Link und Admin) und `MaintenanceJobs` (4 Aufräumarbeiten) Sammelklassen. Jetzt hat jede Klasse eine Aufgabe, im Namen erkennbar:
 
 - Schnittstellen: ein Controller je Seite der UI (`LoginController`, `PasswordResetController`, `PasswordChangeController`, `EmailConfirmationController`, `CurrentUserController`). Die Adressen der API sind unverändert.
 - Logik: `LoginService` (erster Schritt), `SecondFactorLoginService` (zweiter Schritt), `SecondFactorChecker` (Codes prüfen), `SetupTokenService` (Link), `FirstAdminService` (Admin anlegen).
 - SQL für Konten steht gesammelt in `AccountRepository`. Vorher hatten drei Klassen dieselben Abfragen.
+- Betreiber-Befehle: je ein Befehl eine Klasse (`Reset2faCommand`, `RegisterServiceCommand`, ...), der Verteiler `AdminCli` kennt sie nur über die Schnittstelle `AdminCommand`.
+- Provider: `OidcBeansConfig` (Bausteine, auch ohne Webserver), `OidcAuthorizationServerConfig` (Filterkette), `ServicePermissionFilter` (Zugang), `OidcTokenCustomizer` (Prüfung und Claims bei jedem Token), `SigningKeyService` (Schlüssel), `TokenRevocationService` (Widerruf).
 - Aufräum-Jobs: je eine kleine Klasse beim zugehörigen Fachthema, Name endet auf `Job` (`AuditIpRetentionJob`, `ExpiredSessionsJob`, `ThrottleCleanupJob`, `EmailTokenCleanupJob`).
 - Mail-Texte liegen in einer Datei pro Mail und Sprache (`resources/mail/`), die Textsuche in `MailTexts`.
 

@@ -4,14 +4,13 @@ Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
 steht in `CLAUDE.md`.
 
-**Stand:** Etappe 2 (Konten, Login, Passwort-Reset, Mailversand) und die Zwischenetappe zu Struktur und NIST (inklusive Pepper für Passwort-Hashes).
-Der OIDC-Provider kommt mit Etappe 3.
+**Stand:** Etappe 3. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter und der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh mit Rechteprüfung am Dienst). Rollen, Rechte und Dashboard folgen mit Etappe 4.
 
 ## Ordnerübersicht
 
 | Ordner / Datei | Was dort liegt |
 | :- | :- |
-| `src/main/java/net/anfall/auth/` | Der Backend-Code, ein Paket pro Fachthema (`account`, `login`, `password`, `twofactor`, `setup`, `audit`, `mail`, ...). Die Pakete sind in `docs/decisions/code-structure.md` erklärt. |
+| `src/main/java/net/anfall/auth/` | Der Backend-Code, ein Paket pro Fachthema (`account`, `login`, `password`, `twofactor`, `oidc`, `service`, `setup`, `audit`, `mail`, ...). Die Pakete sind in `docs/decisions/code-structure.md` erklärt. |
 | `src/main/resources/db/migration/` | Datenbank-Migrationen (Flyway), eine pro Änderung. Schon gelaufene werden nie geändert. |
 | `src/main/resources/mail/` | Mail-Texte, eine Datei pro Mail und Sprache (Englisch Standard, `_de` Deutsch). |
 | `src/main/resources/application.yml` | Einstellungen, die aus Umgebungsvariablen kommen. |
@@ -153,6 +152,22 @@ Postfix versucht es weiter.
   Mailserver verworfen. Wenn eine Mail nicht zugestellt werden kann, siehst du es nur im Log:
   `docker compose logs mail | grep status=bounced`.
 
+## Dienste anschließen (Vaultwarden, Audiobookshelf)
+
+Ein Dienst ist ein OIDC-Client. Bis das Dashboard (Etappe 4) die Verwaltung übernimmt, legst du ihn mit einem Befehl an. Beispiel mit der Rücksprungadresse aus der Vaultwarden-Anleitung:
+
+```bash
+docker compose exec auth-backend auth-admin register-service vault Vaultwarden https://vault.anfall.net/identity/connect/oidc-signin
+```
+
+Der Befehl zeigt **einmal** die Client-ID (`vault`) und das Client-Secret an. Trage beides im Dienst ein, als Aussteller (Authority, Issuer) gilt `https://auth.anfall.net`. Danach gibst du einem Konto den Zugang:
+
+```bash
+docker compose exec auth-backend auth-admin grant-service joshua vault
+```
+
+Ohne dieses Recht gibt der Provider keinen Code aus, der User sieht die Seite "Kein Zugang". Das Recht wird bei jedem Token-Refresh neu geprüft. Die genauen Einstellungen der Dienste (Scopes `openid profile email offline_access`, PKCE einschalten, Rücksprungadressen) stehen in deren Anleitungen. Das Zusammenspiel mit den echten Diensten testest du nach dem Deployment (in der Entwicklung nicht prüfbar).
+
 ## Betreiber-Befehle
 
 2FA eines Kontos zurücksetzen, zum Beispiel für den letzten Admin, der sich ausgesperrt hat. Entfernt die 2FA und die
@@ -164,3 +179,11 @@ docker compose exec auth-backend auth-admin reset-2fa joshua
 
 Danach reicht beim Login das Passwort. Die 2FA wieder einzurichten ist ab Etappe 4 möglich (API und Seite, siehe
 `docs/OPEN-QUESTIONS.md`).
+
+Neuen Signierschlüssel für die Tokens erzeugen (der alte bleibt zwei Tage zum Prüfen im JWKS):
+
+```bash
+docker compose exec auth-backend auth-admin rotate-signing-key
+```
+
+Alle Befehle zeigt `auth-admin` ohne Parameter an.

@@ -48,6 +48,8 @@ app:
   totp-issuer: ${TOTP_ISSUER:anfall.net}
   setup-token-ttl: PT1H
   mail-from: ${MAIL_FROM:no-reply@anfall.net}
+  # Kommagetrennte Adressbereiche (CIDR) des Reverse-Proxys, siehe .env.example
+  trusted-proxies: ${TRUSTED_PROXIES:127.0.0.0/8,::1/128}
   password-blocklist-file: ${PASSWORD_BLOCKLIST_FILE:/app/data/100k-most-used-passwords-NCSC.txt}
   argon2:
     memory-kib: ${ARGON2_MEMORY_KIB:65536}

@@ -1,7 +1,5 @@
 package net.anfall.auth.mail;
 
-import java.util.Locale;
-import java.util.ResourceBundle;
 import net.anfall.auth.config.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +12,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Verschickt Mails an den eigenen Mailserver. Texte stehen in den Sprachdateien mail.properties (Englisch)
- * und mail_de.properties (Deutsch), nichts steht fest im Code. Mails sind reiner Text.
+ * Verschickt Mails an den eigenen Mailserver. Texte stehen in den Sprachdateien unter resources/mail/ (siehe MailTexts), nichts steht fest im Code. Mails sind reiner Text.
  *
  * Versand läuft im Hintergrund und erst nach dem Commit der Datenbank: Die Antwort an den Besucher dauert
  * gleich lang, egal ob es den Account gibt (wichtig bei "Passwort vergessen"), und ein Link in einer Mail
@@ -25,16 +22,15 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
-    private static final ResourceBundle.Control NO_FALLBACK =
-            ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES);
-
     private final JavaMailSender sender;
+    private final MailTexts texts;
     private final AppProperties props;
     private final MailService self;
 
-    public MailService(JavaMailSender sender, AppProperties props,
+    public MailService(JavaMailSender sender, MailTexts texts, AppProperties props,
                        @org.springframework.context.annotation.Lazy MailService self) {
         this.sender = sender;
+        this.texts = texts;
         this.props = props;
         this.self = self;
     }
@@ -66,12 +62,12 @@ public class MailService {
     /** Läuft im Hintergrund (@Async, abschaltbar mit app.mail.async=false für Tests). */
     @Async
     public void deliver(String to, String language, String key, String username, String link) {
-        ResourceBundle texts = ResourceBundle.getBundle("mail", Locale.forLanguageTag(language), NO_FALLBACK);
+        MailTexts.Text text = texts.render(key, language, username, link);
         SimpleMailMessage mail = new SimpleMailMessage();
         mail.setFrom(props.mailFrom());
         mail.setTo(to);
-        mail.setSubject(texts.getString(key + ".subject"));
-        mail.setText(texts.getString(key + ".body").formatted(username, link));
+        mail.setSubject(text.subject());
+        mail.setText(text.body());
         try {
             sender.send(mail);
         } catch (MailException e) {

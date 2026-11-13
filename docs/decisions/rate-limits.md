@@ -1,0 +1,8 @@
+# Limits und echte IP
+
+Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua entschieden. **[U]** nicht oder nicht ganz verifiziert.
+
+- **[A] Login:** 5 Fehlversuche je Konto in 15 Minuten, dann 15 Minuten Pause, auch für das richtige Passwort. Für 2FA-Codes ein eigener Zähler mit denselben Werten. Gezählt wird am Konto (Username und E-Mail sind dasselbe Konto), bei unbekannten Kennungen an der Kennung, damit die Sperre nichts über die Existenz verrät. Ein Erfolg setzt den Zähler zurück. Nachteil, den die Vorgabe mitbringt: Wer einen Usernamen kennt, kann das Konto 15 Minuten sperren.
+- **[A] Mail-Anfragen (Reset, Bestätigung erneut senden):** 3 pro Stunde **je E-Mail und je IP, getrennt gezählt** (nach der Vorgabe "je E-Mail und IP" ausgelegt als beide Grenzen einzeln). Auch unbekannte Adressen zählen, deshalb darf die Antwort bei Überschreitung ein ehrliches 429 sein, ohne etwas zu verraten.
+- Zähler stehen in der Datenbank (überleben Neustarts). Der Schlüssel ist ein Hash, es liegen keine E-Mail-Adressen oder IPs im Klartext in `throttle`. IPv6 wird auf das /64-Netz gekürzt.
+- **[A] Echte IP:** `X-Forwarded-For` zählt nur, wenn die Anfrage aus einem vertrauenswürdigen Bereich kommt, und dann der **letzte** Eintrag (Caddy hängt die echte Adresse an). Von anderen Absendern wird der Header ignoriert. Der Bereich ist `TRUSTED_PROXIES` (Standard im Compose-File `172.22.0.0/16`, das Subnetz von `caddy_net` laut Joshuas `docker network inspect`, 13.11.2026). Der Standard im Code ist nur lokal, damit ein vergessener Wert nie zu viel erlaubt. Rest-Schwäche: Jeder andere Container in `caddy_net` könnte den Header fälschen, das sind aber nur Joshuas eigene Container.

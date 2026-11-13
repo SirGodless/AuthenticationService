@@ -41,6 +41,11 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   // ---------- Setup des ersten Admins ----------
   await page.goto(`${base}/setup/${token}`);
   await page.waitForSelector('#step-account:not([hidden])');
+  ok((await page.textContent('#password-hint')).includes('15 characters') && (await page.locator('[data-i18n="password.guidance"]').textContent()).includes('Tip'), 'Setup: Hinweis und Hilfestellung unter dem Passwortfeld');
+  await page.fill('#password', 'geheim'); await page.check('[data-show-password]');
+  ok(await page.getAttribute('#password', 'type') === 'text' && await page.getAttribute('#password2', 'type') === 'text', 'Setup: "Passwort anzeigen" schaltet beide Felder um');
+  await page.uncheck('[data-show-password]');
+  ok(await page.getAttribute('#password', 'type') === 'password', 'Setup: "Passwort anzeigen" wieder aus');
   await page.fill('#username', 'Joshua');
   await page.fill('#email', 'joshua@example.com');
   await page.fill('#password', PW1); await page.fill('#password2', PW1);
@@ -109,8 +114,11 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p2.waitForFunction(() => document.querySelector('#error').textContent.length > 0);
   ok((await p2.textContent('#error')).includes('15'), 'Reset: zu kurzes Passwort abgelehnt, Link bleibt gültig');
   await p2.fill('#password', 'qwertyuiopasdfghjkl'); await p2.fill('#password2', 'qwertyuiopasdfghjkl'); await p2.click('#step-form button[type=submit]');
-  await p2.waitForFunction(() => document.querySelector('#error').textContent.includes('leaks'));
+  await p2.waitForFunction(() => document.querySelector('#error').textContent.includes('leaked'));
   ok(true, 'Reset: Passwort von der Sperrliste abgelehnt');
+  await p2.fill('#password', 'Joshua-Joshua-2026-JOSHUA'); await p2.fill('#password2', 'Joshua-Joshua-2026-JOSHUA'); await p2.click('#step-form button[type=submit]');
+  await p2.waitForFunction(() => document.querySelector('#error').textContent.includes('username'));
+  ok(true, 'Reset: aus dem Usernamen abgeleitetes Passwort abgelehnt, mit Grund');
   await p2.fill('#password', PW2); await p2.fill('#password2', PW2); await p2.click('#step-form button[type=submit]');
   await p2.waitForSelector('#step-done:not([hidden])');
   ok(true, 'Reset: neues Passwort gesetzt');

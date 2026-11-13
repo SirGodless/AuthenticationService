@@ -18,7 +18,8 @@ Kennzeichnung der Aussagen:
 5. Joshua ist Einzelentwickler und kann Java lesen und verstehen, Syntax hat er nicht auswendig. Code einfach und lesbar halten, kurze Kommentare (Warum, nicht Was), keine unnötige Abstraktion.
 6. Arbeitsweise: Du arbeitest in einer Cloud-Sitzung ohne Zugriff auf Joshuas Server. Ein Branch pro Etappe und ein Pull Request. Kein Push auf `main`, kein Force-Push. Nach jeder Etappe: Tests grün, PR, kurze Zusammenfassung mit der Liste der getroffenen Annahmen und offenen Fragen. Die nächste Etappe erst nach Freigabe.
 7. Secrets nie im Repo und nie im Log. Nur `.env.example` mit Platzhaltern. Alle Werte in der Cloud-Sitzung sind Dummy-Werte.
-8. In der Cloud-Sitzung ist `docker compose` verfügbar. Nicht verfügbar: echter Mailversand, Caddy, die echten Domains und die echten Dienste (Vaultwarden, Audiobookshelf, Pelican). Das testet Joshua nach dem Deployment.
+8. [E] Struktur und Lesbarkeit (Joshua, 13.11.2026, gilt für alle Etappen und Änderungen): Dateien nach Aufgabe aufteilen, keine riesigen Sammeldateien. Ordner richten sich nach Fachthema (Konten, Einladungen, Berechtigungen, OIDC, Protokoll), wo das lesbarer ist. Namen so wählen, dass man Funktionen über Ordner- und Dateinamen findet. Jedes Repo hat eine `README.md` mit Ordnerübersicht (ein Satz pro Hauptordner), Startanleitung und Testbefehlen, die bei jeder Etappe aktuell gehalten wird. Die gewählte Struktur wird in `docs/DECISIONS.md` (Thema `code-structure`) begründet, spätere Umbauten ebenso. Das gilt auch für Tests, Migrationen, Sprachdateien, Docker-Dateien und Doku.
+9. In der Cloud-Sitzung ist `docker compose` verfügbar. Nicht verfügbar: echter Mailversand, Caddy, die echten Domains und die echten Dienste (Vaultwarden, Audiobookshelf, Pelican). Das testet Joshua nach dem Deployment.
 
 ## 1. Ziel und Umfang
 
@@ -57,7 +58,7 @@ Container:
 - [E] Caddy: Du änderst die laufende Caddy-Konfiguration nicht. Du lieferst einen Block in `deploy/Caddyfile.snippet`, den Joshua selbst einträgt.
 - [E] Deployment: Joshua klont beide Repos in einen Ordner auf dem Server, kopiert `.env.example` nach `.env`, trägt echte Werte ein und startet `docker compose up -d --build`. Schreibe dafür `docs/DEPLOY.md` in einfachen Schritten (Joshua kennt Konzepte, aber nicht jede Syntax auswendig).
 - [A] Container laufen als Nicht-Root-User, haben Healthchecks und feste Image-Versionen.
-- [O] Backup der Datenbank wurde nicht besprochen. Dokumentiere in `docs/DEPLOY.md` einen Befehl für einen Datenbank-Dump und frage Joshua, wie er Backups haben will.
+- [E] Backup der Datenbank (Joshua, 13.11.2026): am Anfang jedes Monats eines, das 1 Jahr aufbewahrt wird, und jeden Tag um 0 Uhr eines, das nach 7 Tagen gelöscht wird. Umsetzung in Etappe 7, Dump-Befehl bis dahin in `docs/DEPLOY.md`. Offen: Ziel des Backups und Zeitzone.
 
 ## 3. Konten, Login, Passwörter, 2FA
 
@@ -75,6 +76,7 @@ Passwörter
 - [E] Hashing mit Argon2id. Mindestkonfiguration laut OWASP: 19 MiB Speicher, 2 Durchläufe, Parallelität 1. [A] Benchmarke auf dem Zielsystem und wähle nicht niedriger.
 - [E] Mindestens 15 Zeichen, keine Zusammensetzungsregeln (kein Zwang zu Groß, Klein, Zahl, Sonderzeichen). Joshua folgt damit NIST SP 800-63B-4.
 - [A] Mindestens 64 Zeichen müssen erlaubt sein (Obergrenze 128).
+- [E] Joshua (13.11.2026): NIST SP 800-63B-4 wird vollständig umgesetzt, nicht nur teilweise. Der Abgleich Anforderung für Anforderung steht in `docs/NIST-800-63B-4.md`.
 - [E] Abgleich mit einer Sperrliste bekannter oder geleakter Passwörter. Es wird das ganze Passwort verglichen, nicht Teile davon.
 - [E] Die Prüfung läuft hinter einer austauschbaren Schnittstelle. Start mit der NCSC-Liste der 100.000 häufigsten geleakten Passwörter (`100k-most-used-passwords-NCSC.txt` aus SecLists). Später kann Joshua den Pwned-Passwords-Index (Have I Been Pwned, offline, rund 35 bis 40 GB oder als kleinerer Index) auf dem Server nutzen. [U] SecLists steht laut einer Drittseite unter MIT-Lizenz, prüfe das im Repo. Lege große Listen nicht ins Git, sondern lade sie per Skript.
 - [E] Kein Fremddienst im Registrierungsweg: keine Online-Abfrage von Passwortdaten, keine externen Mail-Dienste.
@@ -191,17 +193,17 @@ Alles [A], Joshua bestätigt sie:
 
 Jede Etappe: Branch, Tests, PR, Zusammenfassung mit Annahmen und offenen Fragen, Freigabe abwarten.
 
+0. **Zwischenetappe Struktur und NIST (13.11.2026):** Code, Tests, Sprachdateien und Doku nach Fachthema geordnet, READMEs, NIST-Abgleich. Keine neue Funktion außer den NIST-Korrekturen.
 1. **Grundgerüst:** Compose-Stack (Backend, UI, Datenbank, Mailpit im Profil `dev`), Healthchecks, Migrationen, Setup-Link, erster Admin mit Pflicht-2FA und Wiederherstellungscodes. Test: Stack startet frisch, Setup nur einmal möglich.
 2. **Konten und Login:** Mail-Bestätigung, Login mit Username oder E-Mail, "Eingeloggt bleiben", Passwort-Reset, Passwort-Regeln (Argon2id, 15 Zeichen, Sperrliste), Limits, Protokoll-Grundlagen. Test: Regeln, Sperren und Reset als automatisierte Tests.
 3. **OIDC-Provider:** Discovery, JWKS, Authorize, Token, UserInfo, Refresh, Rechteprüfung am Client, Bann widerruft Tokens. Test: Test-Client durchläuft den Flow, ohne Recht kein Code.
-4. **Rollen, Rechte, Dashboard:** typisierte Rechte, Richtung, Live-Rollen, Neuberechnung der effektiven Rechte. Test: Konflikt-Unit-Tests aus Abschnitt 5.
+4. **Rollen, Rechte, Dashboard:** typisierte Rechte, Richtung, Live-Rollen, Neuberechnung der effektiven Rechte, 2FA einrichten, Wiederherstellungscodes neu erzeugen und (für User ohne Admin-Rechte) abschalten (API und Seite, Pflicht-2FA für Admin-Funktionen). Test: Konflikt-Unit-Tests aus Abschnitt 5.
 5. **Einladungslinks:** alle Regeln aus Abschnitt 4. Test: Rennen beim gleichzeitigen Einlösen, Grenzen der Laufzeit, Prüfung des Erstellers beim Einlösen, Platzlimit, IP-Sperre.
 6. **Hub-UI:** Stilvorschläge, Sidebar, Dienste, Statusanzeige, Profilseite.
 7. **Absicherung und Auslieferung:** Header und CORS prüfen, `docs/DEPLOY.md`, `deploy/Caddyfile.snippet`, Backup-Hinweis, Überblick der offenen Punkte.
 
 ## 12. Offen und nicht verifiziert
 
-- [O] Backup-Konzept der Datenbank.
 - [O] E-Mail-Änderung durch User (nicht besprochen, nicht bauen).
 - [O] Passkeys, Löschfunktion, Einbetten, Pelican-Anbindung, Dienste ohne OIDC.
 - [O] Anmeldung der Hub-UI an der API (siehe Abschnitt 8).

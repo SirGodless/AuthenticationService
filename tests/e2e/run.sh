@@ -15,6 +15,8 @@ COMPOSE=(docker compose --env-file "$ENV_FILE" --profile dev)
 BUILD_FLAG="${NO_BUILD:+--no-build --pull never}"
 
 docker network create caddy_net >/dev/null 2>&1 || true
+# Die IP aus dem Test-Caddy soll geglaubt werden: Subnetz des Netzwerks eintragen
+export TRUSTED_PROXIES=$(docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}' caddy_net)
 "${COMPOSE[@]}" down -v >/dev/null 2>&1 || true
 "${COMPOSE[@]}" up -d ${BUILD_FLAG:---build} --wait
 trap 'docker rm -f caddy-test >/dev/null 2>&1 || true' EXIT

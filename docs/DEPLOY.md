@@ -21,6 +21,12 @@ cd AuthenticationService
 cp .env.example .env
 ```
 
+In `.env` steht auch `TRUSTED_PROXIES`: der Adressbereich von `caddy_net`. Damit übernimmt das Backend die echte IP der Besucher von Caddy. Prüfen mit:
+
+```bash
+docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}' caddy_net
+```
+
 Dann `.env` bearbeiten. Zwei Werte erzeugst du so:
 
 ```bash
@@ -80,7 +86,7 @@ docker compose exec -T auth-db psql -U auth auth < auth-backup.sql
 
 Zum Backup gehören der `TOTP_ENCRYPTION_KEY` aus der `.env` (sonst sind die 2FA-Geheimnisse nach einer Wiederherstellung
 unlesbar) und das Docker-Volume `authservice_mail-dkim` (der DKIM-Schlüssel, sonst muss der DNS-Eintrag neu gesetzt werden).
-Wie, wie oft und wohin gesichert wird, ist offen (siehe `OPEN-QUESTIONS.md`).
+Das Konzept steht (monatlich 1 Jahr, täglich 7 Tage, siehe `docs/decisions/containers-and-deployment.md`), die automatische Umsetzung kommt in Etappe 7. Bis dahin: von Hand mit dem Befehl oben. Offen sind Ziel und Zeitzone (`OPEN-QUESTIONS.md`).
 
 ## Entwicklung mit Test-Mailserver
 

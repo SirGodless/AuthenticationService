@@ -46,6 +46,8 @@ services:
       MAIL_HOST: ${MAIL_HOST:-mail}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_FROM: ${MAIL_FROM:-no-reply@anfall.net}
+      # Nur von diesen Adressen wird X-Forwarded-For geglaubt: das Netz von Caddy (docker network inspect caddy_net)
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.22.0.0/16}
     # caddy_net: damit Caddy das Backend erreicht. internal: für Datenbank und Mailserver.
     networks: [caddy_net, internal]
 
@@ -64,6 +66,9 @@ services:
       POSTFIX_myhostname: ${MAIL_HOSTNAME:-mail.anfall.net}
       DKIM_AUTOGENERATE: "1"
       DKIM_SELECTOR: mail
+      # Es gibt keinen Posteingang. Rückläufer (Bounces) gehen an die Absenderadresse und werden dort verworfen.
+      # Gescheiterte Zustellungen sieht man im Log: docker compose logs mail | grep status=bounced
+      POSTFIX_transport_maps: "inline:{ { ${MAIL_FROM:-no-reply@anfall.net} = discard:bounces-not-collected } }"
     volumes:
       # DKIM-Schlüssel: Müssen erhalten bleiben, sonst passt der DNS-Eintrag nicht mehr
       - mail-dkim:/var/lib/rspamd/dkim

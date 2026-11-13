@@ -2,11 +2,27 @@
 
 Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das Backend (Spring Boot) läuft hier,
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
-steht in `CLAUDE.md`, Entscheidungen in `docs/DECISIONS.md`, offene Fragen in `docs/OPEN-QUESTIONS.md`.
+steht in `CLAUDE.md`.
 
-Stand: Etappe 2 (Konten, Login, Passwort-Reset, Mailversand). Der OIDC-Provider kommt mit Etappe 3.
+**Stand:** Etappe 2 (Konten, Login, Passwort-Reset, Mailversand) und die Zwischenetappe zu Struktur und NIST.
+Der OIDC-Provider kommt mit Etappe 3.
 
-## Setup in Kürze
+## Ordnerübersicht
+
+| Ordner / Datei | Was dort liegt |
+| :- | :- |
+| `src/main/java/net/anfall/auth/` | Der Backend-Code, ein Paket pro Fachthema (`account`, `login`, `password`, `twofactor`, `setup`, `audit`, `mail`, ...). Die Pakete sind in `docs/decisions/code-structure.md` erklärt. |
+| `src/main/resources/db/migration/` | Datenbank-Migrationen (Flyway), eine pro Änderung. Schon gelaufene werden nie geändert. |
+| `src/main/resources/mail/` | Mail-Texte, eine Datei pro Mail und Sprache (Englisch Standard, `_de` Deutsch). |
+| `src/main/resources/application.yml` | Einstellungen, die aus Umgebungsvariablen kommen. |
+| `src/test/java/net/anfall/auth/` | Tests, gleiche Paketstruktur wie der Code. `testsupport/` enthält die gemeinsamen Hilfen (Test-Datenbank, Test-Mailserver, Browser-Simulation). |
+| `tests/e2e/` | Ende-zu-Ende-Test im echten Browser mit Test-Caddy (`run.sh`). |
+| `scripts/` | Skripte: Sperrliste laden (`fetch-blocklist.sh`), Betreiber-Befehle im Container (`auth-admin`). |
+| `docs/` | `DEPLOY.md` (Deployment), `decisions/` (Entscheidungen nach Thema, Inhaltsverzeichnis in `DECISIONS.md`), `NIST-800-63B-4.md`, `OPEN-QUESTIONS.md`, `THIRD-PARTY.md`. |
+| `Dockerfile`, `docker-compose.yml`, `.env.example` | Image des Backends, der ganze Stack (Datenbank, Mailserver, Backend, UI), Vorlage für die Einstellungen. |
+| `CLAUDE.md` | Die verbindliche Spezifikation für beide Repos. |
+
+## Starten
 
 Ausführlich in `docs/DEPLOY.md`. Der Mailserver hat unten einen eigenen Abschnitt, weil dafür auf dem Server und im DNS
 etwas zu tun ist, bevor Mails ankommen.
@@ -20,6 +36,19 @@ cp .env.example .env        # Werte eintragen (siehe Kommentare in der Datei)
 docker compose up -d --build
 docker compose logs auth-backend | grep SETUP-LINK   # Link für den ersten Admin
 ```
+
+## Testen
+
+```bash
+mvn test            # Unit- und Integrationstests, brauchen Docker (Test-PostgreSQL)
+tests/e2e/run.sh    # Ende-zu-Ende im Browser, siehe Kommentar in der Datei (Node mit Playwright nötig)
+```
+
+Zum Entwickeln mit Test-Mailserver statt dem echten: `MAIL_HOST=mailpit`, `MAIL_PORT=1025` in `.env` und
+`docker compose --profile dev up -d --build`.
+
+Die Sperrliste für Passwörter lädt der Docker-Build automatisch. Ohne Docker: `scripts/fetch-blocklist.sh data` und
+`PASSWORD_BLOCKLIST_FILE=data/100k-most-used-passwords-NCSC.txt` setzen.
 
 ## Mailserver
 
@@ -120,8 +149,9 @@ Postfix versucht es weiter.
 - Mails werden **ohne Wiederholung durch die Anwendung** versendet: Schlägt die Übergabe an den Mailserver fehl,
   steht ein Fehler im Backend-Log und der User fordert die Mail neu an. Ist die Übergabe geklappt, wiederholt Postfix die
   Auslieferung selbst über mehrere Tage.
-- Rückläufer (Bounces) gehen an die Absenderadresse `MAIL_FROM` (`no-reply@anfall.net`). Dort muss ein Postfach oder eine
-  Weiterleitung existieren, sonst gehen sie verloren (offene Frage in `docs/OPEN-QUESTIONS.md`).
+- Es gibt **keinen Posteingang**. Rückläufer (Bounces) gehen an die Absenderadresse `MAIL_FROM` und werden dort vom
+  Mailserver verworfen. Wenn eine Mail nicht zugestellt werden kann, siehst du es nur im Log:
+  `docker compose logs mail | grep status=bounced`.
 
 ## Betreiber-Befehle
 
@@ -132,17 +162,5 @@ Wiederherstellungscodes und beendet alle Sitzungen:
 docker compose exec auth-backend auth-admin reset-2fa joshua
 ```
 
-Danach reicht beim Login das Passwort. Die 2FA wieder einzurichten ist ab Etappe 6 über die Profilseite möglich.
-
-## Entwickeln und Testen
-
-```bash
-mvn test            # Unit- und Integrationstests, brauchen Docker (Test-PostgreSQL)
-tests/e2e/run.sh    # Ende-zu-Ende im Browser, siehe Kommentar in der Datei
-```
-
-Zum Entwickeln mit Test-Mailserver statt dem echten: `MAIL_HOST=mailpit`, `MAIL_PORT=1025` in `.env` und
-`docker compose --profile dev up -d --build`.
-
-Die Sperrliste für Passwörter lädt der Docker-Build automatisch. Ohne Docker: `scripts/fetch-blocklist.sh data` und
-`PASSWORD_BLOCKLIST_FILE=data/100k-most-used-passwords-NCSC.txt` setzen.
+Danach reicht beim Login das Passwort. Die 2FA wieder einzurichten ist ab Etappe 4 möglich (API und Seite, siehe
+`docs/OPEN-QUESTIONS.md`).

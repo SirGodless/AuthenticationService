@@ -1,9 +1,9 @@
 package net.anfall.auth.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.util.List;
 import net.anfall.auth.config.AppProperties;
+import net.anfall.auth.crypto.Tokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 

@@ -7,6 +7,15 @@ spring:
     password: ${DB_PASSWORD}
   flyway:
     enabled: true
+  mail:
+    # Der eigene Mailserver im Compose-Stack (Container "mail", Submission-Port 587, nur intern erreichbar).
+    # Zum Entwickeln stattdessen MAIL_HOST=mailpit und MAIL_PORT=1025 setzen.
+    host: ${MAIL_HOST:mail}
+    port: ${MAIL_PORT:587}
+    properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
 
 server:
   port: 8080
@@ -28,12 +37,18 @@ management:
     health:
       probes:
         enabled: true
+  health:
+    mail:
+      # Ein nicht erreichbarer Mailserver soll das Backend nicht als krank melden
+      enabled: false
 
 app:
   public-base-url: ${PUBLIC_BASE_URL:https://auth.anfall.net}
   totp-encryption-key: ${TOTP_ENCRYPTION_KEY:}
   totp-issuer: ${TOTP_ISSUER:anfall.net}
   setup-token-ttl: PT1H
+  mail-from: ${MAIL_FROM:no-reply@anfall.net}
+  password-blocklist-file: ${PASSWORD_BLOCKLIST_FILE:/app/data/100k-most-used-passwords-NCSC.txt}
   argon2:
     memory-kib: ${ARGON2_MEMORY_KIB:65536}
     iterations: ${ARGON2_ITERATIONS:3}

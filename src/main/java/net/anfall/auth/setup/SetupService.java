@@ -11,12 +11,10 @@ import net.anfall.auth.crypto.RecoveryCodes;
 import net.anfall.auth.crypto.SecretCipher;
 import net.anfall.auth.crypto.Tokens;
 import net.anfall.auth.crypto.Totp;
-import net.anfall.auth.user.AccountFields;
-import net.anfall.auth.user.PasswordPolicy;
+import net.anfall.auth.user.AccountService;
 import net.anfall.auth.web.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,15 +37,15 @@ public class SetupService {
     private final JdbcClient jdbc;
     private final AppProperties props;
     private final SecretCipher cipher;
-    private final PasswordEncoder passwordEncoder;
+    private final AccountService accounts;
     private final AuditLog audit;
 
     public SetupService(JdbcClient jdbc, AppProperties props, SecretCipher cipher,
-                        PasswordEncoder passwordEncoder, AuditLog audit) {
+                        AccountService accounts, AuditLog audit) {
         this.jdbc = jdbc;
         this.props = props;
         this.cipher = cipher;
-        this.passwordEncoder = passwordEncoder;
+        this.accounts = accounts;
         this.audit = audit;
     }
 
@@ -106,27 +104,9 @@ public class SetupService {
     public List<String> complete(String token, CompleteRequest req, String ip) {
         TokenRow row = loadValidToken(token);
 
-        String username = AccountFields.normalizeUsername(req.username());
-        if (!AccountFields.isValidUsername(username)) {
-            throw bad("username_invalid");
-        }
-        String email = AccountFields.normalizeEmail(req.email());
-        if (!AccountFields.isValidEmail(email)) {
-            throw bad("email_invalid");
-        }
-        if (!AccountFields.isValidLanguage(req.language())) {
-            throw bad("language_invalid");
-        }
-        String passwordError = PasswordPolicy.check(req.password());
-        if (passwordError != null) {
-            throw bad(passwordError);
-        }
-        if (exists("SELECT EXISTS (SELECT 1 FROM users WHERE username = :v)", username)) {
-            throw new ApiException(HttpStatus.CONFLICT, "username_taken");
-        }
-        if (exists("SELECT EXISTS (SELECT 1 FROM user_pii WHERE email = :v)", email)) {
-            throw new ApiException(HttpStatus.CONFLICT, "email_taken");
-        }
+        // Gleiche Regeln wie überall: Username, E-Mail, Sprache, Passwort (inkl. Sperrliste), Eindeutigkeit
+        AccountService.NewAccount account = accounts.validate(req.username(), req.email(), req.password(),
+                req.language());
 
         // 2FA ist Pflicht: Ohne gültigen Code aus der App wird kein Admin angelegt.
         if (row.pendingTotpEnc() == null) {
@@ -138,14 +118,9 @@ public class SetupService {
             throw bad("totp_code_invalid");
         }
 
-        UUID userId = UUID.randomUUID();
-        jdbc.sql("INSERT INTO users (id, username, language) VALUES (:id, :u, :l)")
-                .param("id", userId).param("u", username).param("l", req.language()).update();
-        // Die E-Mail gilt hier als bestätigt: Wer den Setup-Link aus dem Server-Log hat, ist der Betreiber.
-        jdbc.sql("INSERT INTO user_pii (user_id, email, email_verified) VALUES (:id, :e, true)")
-                .param("id", userId).param("e", email).update();
-        jdbc.sql("INSERT INTO user_credentials (user_id, password_hash) VALUES (:id, :h)")
-                .param("id", userId).param("h", passwordEncoder.encode(req.password())).update();
+        // Die E-Mail gilt NUR HIER als bestätigt: Wer den Setup-Link aus dem Server-Log hat, ist der Betreiber.
+        // Alle anderen Konten müssen ihre Adresse per Mail bestätigen.
+        UUID userId = accounts.insert(account, true, null);
         jdbc.sql("INSERT INTO user_totp (user_id, secret_enc, last_used_step) VALUES (:id, :s, :step)")
                 .param("id", userId).param("s", row.pendingTotpEnc()).param("step", step.getAsLong()).update();
         jdbc.sql("INSERT INTO user_roles (user_id, role_id) VALUES (:u, :r)")
@@ -193,10 +168,6 @@ public class SetupService {
     /** Transaktionsweite Sperre, wird beim Ende der Transaktion automatisch freigegeben. */
     private void lock() {
         jdbc.sql("SELECT pg_advisory_xact_lock(:id)").param("id", LOCK_ID).query().singleRow();
-    }
-
-    private boolean exists(String sql, String value) {
-        return jdbc.sql(sql).param("v", value).query(Boolean.class).single();
     }
 
     private static ApiException invalidLink() {

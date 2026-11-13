@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 /** Prüft beim Start die Konfiguration und misst die Dauer eines Passwort-Hashs (Benchmark auf dem Zielsystem). */
 @Component
 @Order(0)
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${app.cli.command:}'.isEmpty()")
 class StartupChecks implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(StartupChecks.class);

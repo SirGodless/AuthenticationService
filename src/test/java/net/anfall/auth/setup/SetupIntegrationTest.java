@@ -13,62 +13,24 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import net.anfall.auth.IntegrationTestBase;
 import net.anfall.auth.crypto.RecoveryCodes;
-import net.anfall.auth.crypto.SecretCipher;
 import net.anfall.auth.crypto.Tokens;
 import net.anfall.auth.crypto.Totp;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
-/** Läuft gegen ein echtes PostgreSQL (Testcontainers), damit Sperren und Transaktionen wirklich geprüft werden. */
-@SpringBootTest(properties = {
-        "spring.datasource.password=ignored-by-service-connection",
-        "app.public-base-url=https://auth.example.test",
-        // 19 MiB und 2 Durchläufe sind das OWASP-Minimum, das hält die Tests schnell
-        "app.argon2.memory-kib=19456",
-        "app.argon2.iterations=2",
-        "app.totp-encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-})
-@AutoConfigureMockMvc
-@Testcontainers
 @ExtendWith(OutputCaptureExtension.class)
-class SetupIntegrationTest {
+class SetupIntegrationTest extends IntegrationTestBase {
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine");
-
-    private static final String PASSWORD = "correct horse battery staple";
-
-    @Autowired MockMvc mvc;
-    @Autowired JdbcClient jdbc;
-    @Autowired JsonMapper json;
     @Autowired SetupService setup;
     @Autowired SetupLinkAnnouncer announcer;
-    @Autowired SecretCipher cipher;
-
-    @BeforeEach
-    void cleanDatabase() {
-        // permissions und roles bleiben (kommen aus der Migration)
-        jdbc.sql("TRUNCATE audit_log, recovery_codes, user_totp, user_credentials, user_pii, user_roles, "
-                + "setup_tokens, users CASCADE").update();
-    }
 
     // ---- Start und Setup-Link ----
 
@@ -228,6 +190,14 @@ class SetupIntegrationTest {
         assertError(token, "joshua", "joshua@example.com", PASSWORD, "fr", code, 400, "language_invalid");
 
         // Nach all den Fehlern geht der Link noch
+        postComplete(token, "joshua", code).andExpect(status().isOk());
+    }
+
+    @Test
+    void passwordOnTheBlocklistIsRejectedAtSetup() throws Exception {
+        String token = setup.issueToken();
+        String code = prepareAndCode(token);
+        assertError(token, "joshua", "joshua@example.com", "password1234567890", "en", code, 400, "password_blocked");
         postComplete(token, "joshua", code).andExpect(status().isOk());
     }
 

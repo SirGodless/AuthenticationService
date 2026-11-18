@@ -92,6 +92,10 @@ public class AccountRepository {
         jdbc.sql("UPDATE user_pii SET email_verified = true WHERE user_id = :u").param("u", userId).update();
     }
 
+    public void setLanguage(UUID userId, String language) {
+        jdbc.sql("UPDATE users SET language = :l WHERE id = :id").param("l", language).param("id", userId).update();
+    }
+
     public String language(UUID userId) {
         return jdbc.sql("SELECT language FROM users WHERE id = :id").param("id", userId)
                 .query(String.class).single();

@@ -51,7 +51,7 @@ class SecurityConfig {
                                 "/api/auth/password-reset/**").permitAll()
                         // Health läuft auf dem internen Management-Port 8081 und ist von außen nicht erreichbar.
                         .requestMatchers("/actuator/health/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/admin/**", "/api/invites/**").authenticated()
+                        .requestMatchers("/api/auth/**", "/api/admin/**", "/api/invites/**", "/api/hub").authenticated()
                         .anyRequest().denyAll());
         return http.build();
     }

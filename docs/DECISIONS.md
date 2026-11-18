@@ -1,6 +1,6 @@
 # Entscheidungen und Annahmen (Inhaltsverzeichnis)
 
-Stand: Etappe 7 (18.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
+Stand: nach Etappe 7 und dem Zusatz "Dienste anbinden" (18.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
 Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahme (wartet auf Bestätigung), **[U]** nicht oder nicht ganz verifiziert.
 
 ## Themen
@@ -15,6 +15,7 @@ Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahm
 | [permissions-and-roles.md](decisions/permissions-and-roles.md) | Rechte (boolesch und Zahl), Berechnung, Rollen als Live-Gruppen, wer was darf |
 | [admin-dashboard.md](decisions/admin-dashboard.md) | Admin-Schnittstelle und -Oberfläche, Pflicht-2FA, Passwort-Reset erzwingen |
 | [two-factor-settings.md](decisions/two-factor-settings.md) | 2FA einrichten, Codes erneuern, abschalten |
+| [service-integration.md](decisions/service-integration.md) | Dienste im Dashboard anlegen, Dienst-Schnittstelle (Rechte abfragen, Farbe und Status melden), Namensraum der Rechte |
 | [security-and-delivery.md](decisions/security-and-delivery.md) | Sicherheits-Header, CORS, Single Sign-on, Caddy-Block, Backup, feste Versionen, Darstellung als Kontoeinstellung |
 | [hub-and-services.md](decisions/hub-and-services.md) | Gestaltung "Raster", Hub und Seitenmenü, Akzentfarbe pro Dienst, Statusanzeige, Profilseite |
 | [invite-links.md](decisions/invite-links.md) | Einladungslinks, Registrierung, Gültigkeit, Prüfung des Erstellers, IP-Sperre |
@@ -29,7 +30,7 @@ Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahm
 | [ui.md](decisions/ui.md) | UI-Entscheidungen (Webserver, Sicherheit, Sprache) |
 | [testing.md](decisions/testing.md) | Was wie getestet ist |
 
-Weitere Dokumente: `NIST-800-63B-4.md` (Abgleich mit dem Standard), `OPEN-QUESTIONS.md`, `THIRD-PARTY.md` (Lizenzen), `DEPLOY.md`.
+Weitere Dokumente: `INTEGRATION.md` (Leitfaden für Dienste), `api/openapi.yaml` (Schnittstellenbeschreibung), `examples/service_client.py`, `NIST-800-63B-4.md` (Abgleich mit dem Standard), `OPEN-QUESTIONS.md`, `THIRD-PARTY.md` (Lizenzen), `DEPLOY.md`.
 
 ## Was noch auf Bestätigung wartet
 
@@ -47,8 +48,9 @@ Alle **[A]**-Punkte in den Themen-Dateien. Die größten:
 - Etappe 5 (`invite-links.md`): nicht gesetztes `links.max_active` heißt kein Platz, Token nur einmal sichtbar, 30 Tage als feste Obergrenze der einstellbaren Werte, `admin.*` und die Rolle Admin nie per Link, Admins deaktivieren fremde Links mit `admin.links.view_all`, Aufheben der IP-Sperre und Grenzen mit `admin.settings.manage`, abgelehnter Link bleibt unverändert, Seite `/account/links` schon vor der Profilseite.
 - Etappe 6 (`hub-and-services.md`): Schriftfarbe auf Dienstknöpfen automatisch, offline markierte Dienste bleiben öffenbar, Status = Antwort 2xx oder 3xx in 5 Sekunden, Mailserver-Status als Erreichbarkeitsprüfung nur für Admins, Dienst-Anlage weiter per Befehl.
 - Etappe 7 (`security-and-delivery.md`): Backup-Container mit eigenem Zeitplan (Zeitzone Europe/Berlin), Schlüssel und DKIM im Backup, Hub nur unter `auth.anfall.net` (anfall.net leitet um, kein CORS), Basis-Images per Digest festgenagelt, `anfall.net`-Umleitung dauerhaft (301).
+- Dienste anbinden (`service-integration.md`): Meldeweg darf nur Farbe und Status (nicht Name, Beschreibung, Adresse), Dienst-Token per client_credentials mit Merkmal `token_use=service`, Rücksprung-Adressen mit App-Schemas erlaubt, 600 Anfragen pro Minute und Dienst.
 
 ## Bewusst noch nicht gebaut
 
-- Dienste anlegen im Dashboard (bis dahin `auth-admin register-service`), Farbe von Diensten selbst melden lassen, Einbetten der Dienste, Backup (Etappe 7).
+- Back-Channel-Logout, Einbetten der Dienste.
 - Backup-Container (Konzept steht, Umsetzung Etappe 7).

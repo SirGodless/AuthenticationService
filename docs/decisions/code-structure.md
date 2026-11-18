@@ -20,13 +20,14 @@ Kennzeichnung: **[E]** von Joshua entschieden. **[A]** Annahme.
 | `login` | Anmelden (Passwort, zweiter Schritt), Abmelden, "Wer bin ich" |
 | `login/session` | Anmeldesitzungen und ihre Anbindung an Spring Security |
 | `oidc` | OIDC-Provider: Filterkette, Anmeldung für den Provider, Rechteprüfung, Token-Anpassung, Signierschlüssel, Widerruf |
-| `service` | Dienste (Vaultwarden, ...): anlegen, Recht, OIDC-Client, Anzeige-Eigenschaften und Akzentfarbe, Statusprüfung |
+| `service` | Dienste (Vaultwarden, ...): anlegen im Dashboard, Recht, OIDC-Client, Rücksprung-Adressen, Client-Geheimnis, Anzeige-Eigenschaften und Akzentfarbe, Statusprüfung |
 | `permission` | Rechte: Definitionen, Werte, Berechnung der wirksamen Rechte, Verwaltung (Etappe 4) |
 | `role` | Rollen: anlegen, ändern, Mitglieder (Etappe 4) |
 | `useradmin` | Benutzerverwaltung im Dashboard: Liste, Details, 2FA zurücksetzen, Passwort-Reset erzwingen, Reiter-Übersicht (Etappe 4) |
 | `password` | Passwort-Regeln und Hashing, Passwort vergessen, Passwort ändern |
 | `password/check` | Die einzelnen Prüfungen (Länge, Sperrliste, Kontextwörter) |
 | `emailconfirmation` | E-Mail-Adresse bestätigen, Bestätigungsmail erneut senden |
+| `serviceapi` | Die Schnittstelle für Dienste (`/api/service/*`): eigene Filterkette, Rechte eines Nutzers abfragen, Farbe und Status melden |
 | `hub` | Daten für Startseite und Seitenmenü (Dienste des Users, Status, Konto) (Etappe 6) |
 | `invite` | Einladungslinks: erstellen, Regeln, Registrierung, Gültigkeit, IP-Sperre (Etappe 5) |
 | `settings` | Einstellungen aus dem Dashboard (Schlüssel-Wert) |

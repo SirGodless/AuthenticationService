@@ -2,7 +2,7 @@
 
 Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua entschieden. **[U]** nicht oder nicht ganz verifiziert.
 
-- 307 automatische Tests (Stand Etappe 7, 291 nach Etappe 6, 272 nach Etappe 5, 225 nach Etappe 4, 166 nach Etappe 3), darunter Rennen beim gleichzeitigen Einlösen eines Reset-Links, alle Limits, Sitzungslaufzeiten, Cookie-Eigenschaften, 2FA-Wiederverwendung, Neutralität der Antworten, Protokollschutz, Unicode. Der Mailversand läuft im Test über einen echten SMTP-Server (GreenMail).
+- 338 automatische Tests (Stand nach dem Zusatz "Dienste anbinden", 307 nach Etappe 7, 291 nach Etappe 6, 272 nach Etappe 5, 225 nach Etappe 4, 166 nach Etappe 3), darunter Rennen beim gleichzeitigen Einlösen eines Reset-Links, alle Limits, Sitzungslaufzeiten, Cookie-Eigenschaften, 2FA-Wiederverwendung, Neutralität der Antworten, Protokollschutz, Unicode. Der Mailversand läuft im Test über einen echten SMTP-Server (GreenMail).
 - Ende-zu-Ende im Browser (`tests/e2e/run.sh`, mit `tests/check-i18n.js` im UserHub-Repo für die Sprachdateien) mit Test-Caddy über HTTPS: Setup, Login mit 2FA, falscher Code, "Passwort vergessen" mit Mail aus Mailpit, Sperrlisten-Fehler, Reset, Wiederherstellungscode, Abmelden, Cookie-Flags im echten Browser.
 - Lizenzen: siehe `docs/THIRD-PARTY.md`.
 
@@ -49,3 +49,9 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - **`backup/test.sh`:** Zeitplan, Aufbewahrung (400 nachgespielte Tage: 7 tägliche, 12 monatliche, der älteste tägliche von vor 6 Tagen), Dateirechte, Schlüsseldatei und Wiederherstellung mit einer Wegwerf-Datenbank.
 - **Browser-Test erweitert** (103 Prüfungen): Der Test-Caddy wird aus `deploy/Caddyfile.snippet` gebaut (HSTS kommt von dort). Header aller 11 Seitenarten, API ohne CORS, kein Umschalter für die Darstellung auf den Seiten, Einstellung im Profil wirkt und bleibt, Farbe vom Dienst überschreibt, Kästchen hält die Hub-Farbe, Backup-Container im echten Stack (Dump, Schlüssel, DKIM, gesund).
 - Nicht prüfbar in der Sitzung: echte Dienste, echter Mailversand, echte Domains und Zertifikate, Zustellung an große Mail-Anbieter, die Schwachstellenprüfung der Abhängigkeiten (Datenbanken aus der Umgebung nicht erreichbar).
+
+## Zusatz "Dienste anbinden"
+
+- `ServiceDashboardTest` (9): Dienst anlegen mit Recht und Client, Geheimnis einmal und nur als Hash, Pflichtfelder, ungültige Eingaben legen nichts an, strenge Regeln für Rücksprung-Adressen (10 Fälle), Schlüssel eindeutig, Adressen ersetzen, neues Geheimnis macht das alte ungültig, Recht und 2FA, Spalte "Dienst" bei den Rechten.
+- `ServiceApiTest` (22): Token per client_credentials (Signatur gegen JWKS, kein Refresh-Token), falsches Geheimnis und Scope, 401 ohne und mit kaputtem Token, **Nutzer-Token werden abgelehnt** (auch mit Scope `service`), nur Rechte des eigenen Namensraums, Zahlenwerte aus mehreren Quellen, `unlimited`, 0 ist ein Wert, Präfix engt ein und verlässt den Namensraum nie, fremder Dienst sieht nur seine Rechte, kein Zugang und Bann, Entzug wirkt sofort, ungültige `sub`, eigene Daten, gemeldete Farbe überschreibt außer festgehalten, ungültige Meldungen ändern nichts, gemeldeter Status mit Vorrang, Protokoll, Begrenzung, Token ohne Rechte darin.
+- Browser-Test (116 Prüfungen) und das Python-Beispiel gegen den echten Stack. OpenAPI-Datei mit `openapi-spec-validator` geprüft.

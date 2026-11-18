@@ -1,0 +1,241 @@
+openapi: 3.1.0
+info:
+  title: Hub-Schnittstelle für Dienste
+  version: 1.0.0
+  summary: Was ein eigener Dienst beim Hub (AuthenticationService) abfragen und melden kann.
+  description: |
+    Diese Beschreibung gilt für die **Dienst-Schnittstelle** (`/api/service/*`) und den Token-Abruf des Dienstes
+    (client_credentials). Die Anmeldung von Nutzern läuft über den Standard OpenID Connect (Authorization Code mit PKCE,
+    Discovery unter `/.well-known/openid-configuration`) und ist in `docs/INTEGRATION.md` beschrieben.
+
+    **Ablauf:** Der Dienst holt sich mit seiner Client-ID und seinem Client-Geheimnis ein kurzlebiges Token
+    (`POST /oauth2/token`, Scope `service`) und schickt es als `Authorization: Bearer <token>` an die Endpunkte unten.
+    Ein Token eines Nutzers wird abgelehnt.
+
+    **Namensraum der Rechte:** Rechte, die zu einem Dienst gehören, tragen seinen Schlüssel als Präfix (`media.upload`
+    gehört zum Dienst `media`). Ein Dienst sieht nur Rechte aus seinem eigenen Namensraum.
+servers:
+  - url: https://auth.anfall.net
+    description: Produktion (der Aussteller darf sich nie ändern)
+tags:
+  - name: Token
+  - name: Rechte
+  - name: Dienst
+paths:
+  /oauth2/token:
+    post:
+      tags: [Token]
+      operationId: serviceToken
+      summary: Token des Dienstes holen (client_credentials)
+      description: |
+        Standardendpunkt des OAuth-2-Providers. Das Token gilt 10 Minuten, es gibt kein Refresh-Token.
+        Holen und zwischenspeichern, kurz vor Ablauf neu holen. Das Client-Geheimnis wird per HTTP Basic
+        (`client_id:client_secret`) oder als Formularfelder `client_id` und `client_secret` übergeben.
+      security:
+        - clientBasic: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type, scope]
+              properties:
+                grant_type: { type: string, const: client_credentials }
+                scope: { type: string, const: service }
+            example: "grant_type=client_credentials&scope=service"
+      responses:
+        "200":
+          description: Token ausgestellt.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, scope]
+                properties:
+                  access_token: { type: string, description: "JWT (RS256), Merkmal token_use=service" }
+                  token_type: { type: string, const: Bearer }
+                  expires_in: { type: integer, example: 599 }
+                  scope: { type: string, example: service }
+        "400":
+          description: Unbekannter Scope oder Grant (`invalid_scope`, `unsupported_grant_type`).
+        "401":
+          description: Client-ID oder Client-Geheimnis falsch (`invalid_client`).
+  /api/service/users/{sub}/permissions:
+    get:
+      tags: [Rechte]
+      operationId: userPermissions
+      summary: Rechte eines Nutzers für diesen Dienst
+      description: |
+        Liefert, ob der Nutzer den Dienst nutzen darf, und seine **wirksamen** Rechte aus dem Namensraum des Dienstes.
+        Wirksam heißt: aus allen Rollen und direkten Rechten berechnet (bei Zahlen der Wert, der mehr Rechte gibt, bei
+        "unbegrenzt" `unlimited`). Nicht gesetzte Rechte fehlen in der Liste. Die Antwort ist immer aktuell: Ein Entzug
+        gilt sofort. Kurz zwischenspeichern (höchstens 60 Sekunden) ist in Ordnung.
+
+        Hat der Nutzer keinen Zugang (Recht auf den Dienst fehlt oder Konto gesperrt), ist `access` false und die Liste leer.
+      security:
+        - serviceToken: []
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          description: Die Kennung des Nutzers (Claim `sub` aus seinem Token, eine UUID).
+          schema: { type: string, format: uuid }
+        - name: prefix
+          in: query
+          required: false
+          description: Schränkt die Antwort weiter ein. Muss mit `<dienst>.` beginnen. Ohne Angabe gilt der ganze Namensraum.
+          schema: { type: string, example: "media.quota" }
+      responses:
+        "200":
+          description: Antwort.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserPermissions" }
+              examples:
+                mitRechten:
+                  value:
+                    sub: 3f0c1d2e-7a55-4a3e-9d0b-0f6c1b7f1a11
+                    access: true
+                    permissions:
+                      - { key: media.upload, type: boolean }
+                      - { key: media.quota_gb, type: number, value: 50 }
+                      - { key: media.share_links, type: number, unlimited: true }
+                keinZugang:
+                  value:
+                    sub: 3f0c1d2e-7a55-4a3e-9d0b-0f6c1b7f1a11
+                    access: false
+                    permissions: []
+        "400":
+          description: "`sub_invalid` (keine UUID) oder `prefix_not_allowed` (Präfix außerhalb des Namensraums)."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`user_unknown`: Diesen Nutzer gibt es nicht."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /api/service/self:
+    get:
+      tags: [Dienst]
+      operationId: getSelf
+      summary: Eigene Daten des Dienstes im Hub
+      security:
+        - serviceToken: []
+      responses:
+        "200":
+          description: Die Daten, wie der Hub sie kennt (nie das Client-Geheimnis).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceSelf" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    put:
+      tags: [Dienst]
+      operationId: reportSelf
+      summary: Farbe und Status melden
+      description: |
+        Meldet die Akzentfarbe und/oder den Status des Dienstes. Fehlende Felder bleiben unverändert. Wird etwas Ungültiges
+        gesendet, wird **nichts** übernommen.
+
+        **Farbe:** Eine gemeldete Farbe überschreibt die im Hub eingestellte, außer ein Admin hat im Hub festgehalten,
+        dass die Hub-Farbe bleibt (`accentLocked`). Ein leerer Text löscht die gemeldete Farbe.
+
+        **Status:** Gilt für `ttlSeconds` Sekunden (Standard 180) und hat in dieser Zeit Vorrang vor der Statusabfrage des
+        Hubs. Danach gilt wieder die Abfrage der Health-Adresse. Wer seinen Status melden will, schickt also alle
+        paar Minuten ein neues `up`.
+      security:
+        - serviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SelfUpdate" }
+            examples:
+              farbe: { value: { accentColor: "#22aa55" } }
+              status: { value: { status: { state: up, ttlSeconds: 300 } } }
+              beides: { value: { accentColor: "#22aa55", status: { state: down } } }
+              farbeLoeschen: { value: { accentColor: "" } }
+      responses:
+        "200":
+          description: Übernommen.
+          content: { application/json: { schema: { type: object, properties: { status: { type: string, const: ok } } } } }
+        "400":
+          description: "`service_color_invalid`, `status_state_invalid` oder `status_ttl_invalid`."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+components:
+  securitySchemes:
+    clientBasic:
+      type: http
+      scheme: basic
+      description: Client-ID und Client-Geheimnis des Dienstes (aus dem Dashboard).
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token des Dienstes aus `POST /oauth2/token` (client_credentials, Scope `service`). Ein Token eines Nutzers ist
+        ungültig (403).
+  responses:
+    Unauthorized:
+      description: Kein oder ungültiges Token (abgelaufen, falsche Signatur). Der Header `WWW-Authenticate` nennt den Grund.
+    Forbidden:
+      description: "Das Token ist nicht das eines Dienstes (`not_a_service_token`), der Scope `service` fehlt oder der Dienst ist unbekannt (`service_unknown`)."
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    TooManyRequests:
+      description: "Mehr als 600 Anfragen pro Minute für diesen Dienst (`too_many_requests`). Kurz warten."
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, description: Kurzer Fehlercode, maschinenlesbar, example: sub_invalid }
+    UserPermissions:
+      type: object
+      required: [sub, access, permissions]
+      properties:
+        sub: { type: string, format: uuid }
+        access: { type: boolean, description: "Darf der Nutzer diesen Dienst nutzen (Recht vorhanden und Konto nicht gesperrt)?" }
+        permissions:
+          type: array
+          items: { $ref: "#/components/schemas/Permission" }
+    Permission:
+      type: object
+      required: [key, type]
+      properties:
+        key: { type: string, example: media.quota_gb }
+        type: { type: string, enum: [boolean, number] }
+        value:
+          type: integer
+          minimum: 0
+          description: Nur bei Zahlenrechten ohne "unbegrenzt". 0 ist ein gültiger Wert (nicht gleich "nicht gesetzt").
+        unlimited: { type: boolean, const: true, description: Nur bei Zahlenrechten mit "unbegrenzt". Dann fehlt `value`. }
+      description: |
+        Boolesche Rechte stehen in der Liste, wenn sie vergeben sind (ohne weiteres Feld). Zahlenrechte haben `value`
+        oder `unlimited`. Rechte, die der Nutzer nicht hat, stehen nicht in der Liste.
+    ServiceSelf:
+      type: object
+      properties:
+        key: { type: string }
+        displayName: { type: string }
+        description: { type: string }
+        accentColor: { type: [string, "null"], description: "Im Hub eingestellte Farbe, #rrggbb" }
+        reportedAccentColor: { type: [string, "null"], description: "Zuletzt vom Dienst gemeldete Farbe" }
+        accentLocked: { type: boolean, description: "true: Die Hub-Farbe bleibt, auch wenn der Dienst eine meldet" }
+        effectiveAccentColor: { type: [string, "null"], description: "Die Farbe, die im Hub gilt (null = allgemeiner Akzent)" }
+        status: { type: string, enum: [up, down, unknown] }
+    SelfUpdate:
+      type: object
+      properties:
+        accentColor: { type: string, description: '#rrggbb, oder "" zum Löschen', examples: ["#22aa55"] }
+        status:
+          type: object
+          required: [state]
+          properties:
+            state: { type: string, enum: [up, down] }
+            ttlSeconds: { type: integer, minimum: 30, maximum: 900, default: 180 }

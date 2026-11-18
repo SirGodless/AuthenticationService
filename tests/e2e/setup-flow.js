@@ -334,6 +334,61 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p3.goto(`${base}/`); await p3.waitForSelector('#services tr');
   if (process.env.SHOT_DIR) await p3.screenshot({ path: process.env.SHOT_DIR + '/hub.png', fullPage: true });
 
+  // ---------- Dienst im Dashboard anlegen und die Dienst-Schnittstelle benutzen ----------
+  await p3.goto(`${base}/admin`);
+  await p3.click('#tabs .tab:has-text("Services")');
+  await p3.waitForSelector('#new-service');
+  await p3.click('#new-service summary');
+  await p3.fill('#new-key', 'media'); await p3.fill('#new-name', 'Medien'); await p3.fill('#new-redirects', 'https://media.example/cb');
+  await p3.click('#new-service button[type=submit]');
+  await p3.waitForSelector('#secret-value');
+  const mediaSecret = (await p3.textContent('#secret-value')).trim();
+  ok(mediaSecret.length === 43 && (await p3.textContent('#secret-client-id')) === 'media', 'Dienste: Dienst im Dashboard angelegt, Client-ID und Geheimnis werden einmal angezeigt');
+  await p3.click('#tabs .tab:has-text("Users")'); await p3.click('#tabs .tab:has-text("Services")'); await p3.waitForSelector('#service-media');
+  ok(!(await p3.content()).includes(mediaSecret), 'Dienste: Das Geheimnis ist danach nirgends mehr zu sehen');
+  ok((await p3.inputValue('#media-redirects')) === 'https://media.example/cb', 'Dienste: Rücksprung-Adresse steht im Dienst');
+  await p3.fill('#media-redirects', 'https://media.example/cb\nhttps://media.example/zwei');
+  await p3.click('#service-media button:has-text("Save redirect addresses")');
+  await p3.waitForFunction(() => document.querySelector('#notice').textContent.includes('Saved'));
+  ok(true, 'Dienste: Rücksprung-Adressen geändert');
+  await p3.fill('#media-redirects', 'javascript:alert(1)');
+  await p3.click('#service-media button:has-text("Save redirect addresses")');
+  await p3.waitForFunction(() => document.querySelector('#notice').textContent.length > 0 && !document.querySelector('#notice').textContent.includes('Saved'));
+  ok(true, 'Dienste: ungültige Rücksprung-Adresse wird abgelehnt');
+
+  // Der Dienst holt sich ein Token (client_credentials) und nutzt die Dienst-Schnittstelle
+  const form = (o) => new URLSearchParams(o).toString();
+  const svc = (path, init, token) => p3.evaluate(async ({ path, init, token }) => {
+    const r = await fetch(path, { ...init, headers: { ...(init && init.headers), Authorization: 'Bearer ' + token } });
+    let body = null; try { body = await r.json(); } catch (e) { /* leer */ }
+    return { status: r.status, body };
+  }, { path, init, token });
+  const tokenRes = await p3.evaluate(async ({ secret }) => {
+    const r = await fetch('/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + btoa('media:' + secret) },
+      body: 'grant_type=client_credentials&scope=service' });
+    return { status: r.status, body: await r.json() };
+  }, { secret: mediaSecret });
+  ok(tokenRes.status === 200 && tokenRes.body.access_token && !tokenRes.body.refresh_token, 'Dienst-Schnittstelle: Token per client_credentials');
+  const serviceToken = tokenRes.body.access_token;
+  let perms = await svc(`/api/service/users/${claims.sub}/permissions`, {}, serviceToken);
+  ok(perms.status === 200 && perms.body.access === false, 'Dienst-Schnittstelle: ohne Recht auf den Dienst ist access false');
+  ok(admin('grant-service joshua media').includes('Zugang'), 'auth-admin grant-service für den neuen Dienst');
+  // media.upload gibt es seit dem Dashboard-Test oben schon
+  sql("INSERT INTO permissions (key, type, builtin) VALUES ('vault.nicht', 'boolean', false)");
+  sql("INSERT INTO user_permissions (user_id, permission_key) SELECT u.id, k FROM users u, (VALUES ('media.upload'), ('vault.nicht')) v(k) WHERE u.username = 'joshua'");
+  perms = await svc(`/api/service/users/${claims.sub}/permissions`, {}, serviceToken);
+  ok(perms.body.access === true && perms.body.permissions.length === 1 && perms.body.permissions[0].key === 'media.upload', 'Dienst-Schnittstelle: Rechte des Users nur aus dem eigenen Namensraum (media.*)');
+  const other = await svc(`/api/service/users/${claims.sub}/permissions?prefix=vault.`, {}, serviceToken);
+  ok(other.status === 400, 'Dienst-Schnittstelle: fremder Namensraum wird abgelehnt');
+  const noToken = await svc('/api/service/self', {}, 'kaputt');
+  ok(noToken.status === 401, 'Dienst-Schnittstelle: ungültiges Token gibt 401');
+  const reportRes = await svc('/api/service/self', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accentColor: '#22aa55', status: { state: 'up', ttlSeconds: 300 } }) }, serviceToken);
+  ok(reportRes.status === 200, 'Dienst-Schnittstelle: Dienst meldet Farbe und Status');
+  await p3.goto(`${base}/`); await p3.waitForSelector('#services tr:has-text("Medien")');
+  const medienRow = await p3.locator('#services tr:has-text("Medien")').evaluate((el) => ({ swatch: getComputedStyle(el.querySelector('.svc-swatch')).backgroundColor, tag: el.querySelector('.tag').textContent }));
+  ok(medienRow.swatch === 'rgb(34, 170, 85)' && /online/i.test(medienRow.tag), 'Hub: gemeldete Farbe und gemeldeter Status (online) erscheinen im Hub (' + medienRow.swatch + ')');
+
   // ---------- Einladungslinks (Etappe 5) ----------
   // joshua bekommt über das Dashboard die Rechte zum Erstellen von Links (die Rolle Admin gibt sie nicht von selbst)
   await p3.goto(`${base}/admin`);

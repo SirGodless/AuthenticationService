@@ -1,5 +1,7 @@
 # OIDC-Provider (Etappe 3)
 
+**Stand 18.11.2026:** Joshua stellt die Anbindung der einzelnen Dienste (Vaultwarden, Audiobookshelf) zurück und sucht eine andere Lösung, weil sie sich nicht gut in die Webseite einbinden lassen. Der Provider bleibt als Grundlage. Aussagen unten zu bestimmten Diensten sind Hintergrund, keine Pflicht.
+
 Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua entschieden. **[U]** nicht oder nicht ganz verifiziert. Der Code liegt in `src/main/java/net/anfall/auth/oidc/` (Protokoll, Schlüssel, Tokens) und `.../service/` (Dienste).
 
 ## Technik, gegen Quellen geprüft

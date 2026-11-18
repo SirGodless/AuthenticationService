@@ -29,7 +29,9 @@ class ServiceRegistrationTest extends IntegrationTestBase {
 
         var client = clients.findByClientId("vault");
         assertThat(client.getRedirectUris()).containsExactly("https://vault.example/cb");
-        assertThat(client.getScopes()).containsExactlyInAnyOrder("openid", "profile", "email", "offline_access");
+        assertThat(client.getScopes()).containsExactlyInAnyOrder("openid", "profile", "email", "offline_access", "service");
+        assertThat(client.getAuthorizationGrantTypes()).extracting(g -> g.getValue())
+                .containsExactlyInAnyOrder("authorization_code", "refresh_token", "client_credentials");
         assertThat(client.getClientSettings().isRequireProofKey()).isTrue();
         assertThat(client.getClientSettings().isRequireAuthorizationConsent()).isFalse();
         assertThat(client.getTokenSettings().getAccessTokenTimeToLive().toMinutes()).isEqualTo(10);

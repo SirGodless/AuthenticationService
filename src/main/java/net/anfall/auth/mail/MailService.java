@@ -45,6 +45,11 @@ public class MailService {
         sendLater(to, language, "password_reset", username, props.publicBaseUrl() + "/reset/" + token);
     }
 
+    /** Link zum Zurücksetzen des Passworts, wenn ein Admin den Reset erzwungen hat. */
+    public void sendForcedPasswordReset(String to, String language, String username, String token) {
+        sendLater(to, language, "password_reset_forced", username, props.publicBaseUrl() + "/reset/" + token);
+    }
+
     private void sendLater(String to, String language, String key, String username, String link) {
         Runnable job = () -> self.deliver(to, language, key, username, link);
         if (TransactionSynchronizationManager.isSynchronizationActive()) {

@@ -7,6 +7,8 @@ import net.anfall.auth.config.AppProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.core.OAuth2RefreshToken;
+import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -16,6 +18,12 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.JwtGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2RefreshTokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 
 /**
  * Die Bausteine des Providers, die auch ohne Webserver gebraucht werden (Betreiber-Befehle legen z. B. Dienste an):
@@ -61,5 +69,21 @@ class OidcBeansConfig {
     @Bean
     JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
         return NimbusJwtDecoder.withJwkSource(jwkSource).build();
+    }
+
+    /**
+     * Token-Generator wie der Standard von Spring, mit einer Änderung: Einen Refresh-Token gibt es nur, wenn der Dienst
+     * den Scope offline_access angefordert hat (so verlangt es die Spezifikation und der OIDC-Standard).
+     * Der Customizer sitzt am JWT-Generator und prüft dort bei jedem Token den Zugang.
+     */
+    @Bean
+    OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator(JwtEncoder jwtEncoder,
+                                                               OAuth2TokenCustomizer<JwtEncodingContext> customizer) {
+        JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
+        jwtGenerator.setJwtCustomizer(customizer);
+        OAuth2RefreshTokenGenerator refreshGenerator = new OAuth2RefreshTokenGenerator();
+        OAuth2TokenGenerator<OAuth2RefreshToken> refreshOnlyWithOfflineAccess =
+                context -> context.getAuthorizedScopes().contains("offline_access") ? refreshGenerator.generate(context) : null;
+        return new DelegatingOAuth2TokenGenerator(jwtGenerator, refreshOnlyWithOfflineAccess);
     }
 }

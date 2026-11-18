@@ -23,12 +23,15 @@ public class AccountBanService {
     private final SessionService sessions;
     private final TokenRevocationService tokens;
     private final AuditLog audit;
+    private final LastAdminRule lastAdmin;
 
-    public AccountBanService(JdbcClient jdbc, SessionService sessions, TokenRevocationService tokens, AuditLog audit) {
+    public AccountBanService(JdbcClient jdbc, SessionService sessions, TokenRevocationService tokens, AuditLog audit,
+                             LastAdminRule lastAdmin) {
         this.jdbc = jdbc;
         this.sessions = sessions;
         this.tokens = tokens;
         this.audit = audit;
+        this.lastAdmin = lastAdmin;
     }
 
     @Transactional
@@ -36,7 +39,7 @@ public class AccountBanService {
         if (actorId.equals(targetId)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "cannot_ban_self");
         }
-        if (isLastAdmin(targetId)) {
+        if (lastAdmin.isLastAdmin(targetId)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "cannot_ban_last_admin");
         }
         jdbc.sql("UPDATE users SET banned = true WHERE id = :id").param("id", targetId).update();
@@ -50,17 +53,5 @@ public class AccountBanService {
     public void unban(UUID actorId, UUID targetId, String ip) {
         jdbc.sql("UPDATE users SET banned = false WHERE id = :id").param("id", targetId).update();
         audit.record(actorId, targetId, "account.unbanned", Map.of(), ip);
-    }
-
-    /** Ist das Konto der einzige nicht gebannte Admin? Dann darf es nicht gebannt werden. */
-    private boolean isLastAdmin(UUID userId) {
-        return jdbc.sql("""
-                        SELECT EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-                                       WHERE ur.user_id = :u AND r.all_admin_permissions)
-                           AND NOT EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-                                           JOIN users u ON u.id = ur.user_id
-                                           WHERE r.all_admin_permissions AND NOT u.banned AND u.id <> :u)
-                        """)
-                .param("u", userId).query(Boolean.class).single();
     }
 }

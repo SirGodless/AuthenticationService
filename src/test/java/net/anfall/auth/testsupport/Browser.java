@@ -76,6 +76,29 @@ public class Browser {
         return send(req, body);
     }
 
+    public Result put(String path, Map<String, ?> body) throws Exception {
+        return withBody(MockMvcRequestBuilders.put(path), body);
+    }
+
+    public Result patch(String path, Map<String, ?> body) throws Exception {
+        return withBody(MockMvcRequestBuilders.patch(path), body);
+    }
+
+    public Result delete(String path) throws Exception {
+        return withBody(MockMvcRequestBuilders.delete(path), null);
+    }
+
+    private Result withBody(MockHttpServletRequestBuilder req, Map<String, ?> body) throws Exception {
+        if (!cookies.containsKey("XSRF-TOKEN")) {
+            open();
+        }
+        req.contentType(MediaType.APPLICATION_JSON).header("X-XSRF-TOKEN", cookies.get("XSRF-TOKEN"));
+        if (body != null) {
+            req.content(json.writeValueAsString(body));
+        }
+        return send(req, body);
+    }
+
     /** POST ohne CSRF-Header (so würde ein fremder Tab senden). */
     public Result postWithoutCsrf(String path, Map<String, ?> body) throws Exception {
         MockHttpServletRequestBuilder req = MockMvcRequestBuilders.post(path).contentType(MediaType.APPLICATION_JSON)

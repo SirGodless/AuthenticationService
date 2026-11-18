@@ -18,6 +18,11 @@ public final class ApiResponses {
         return ok(Map.of("valid", true));
     }
 
+    /** Beliebiges Objekt als JSON-Antwort (Listen, Datensätze). */
+    public static ResponseEntity<Object> json(Object body) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
+    }
+
     public static ResponseEntity<Map<String, Object>> ok(Map<String, Object> body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }

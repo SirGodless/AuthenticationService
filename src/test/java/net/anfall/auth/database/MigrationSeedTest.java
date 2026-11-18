@@ -16,7 +16,7 @@ class MigrationSeedTest extends IntegrationTestBase {
         assertThat(jdbc.sql("SELECT key FROM permissions WHERE key LIKE 'admin.%'").query(String.class).list())
                 .containsExactlyInAnyOrder("admin.users.view", "admin.users.ban", "admin.users.reset_2fa",
                         "admin.roles.manage", "admin.permissions.manage", "admin.services.manage",
-                        "admin.links.view_all", "admin.audit.view", "admin.settings.manage");
+                        "admin.links.view_all", "admin.audit.view", "admin.settings.manage", "admin.users.force_password_reset");
         assertThat(jdbc.sql("SELECT type, direction, allow_unlimited FROM permissions WHERE key = 'links.max_active'")
                 .query().singleRow())
                 .containsEntry("type", "number").containsEntry("direction", "higher")

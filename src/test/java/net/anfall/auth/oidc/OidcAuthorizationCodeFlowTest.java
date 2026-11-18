@@ -90,11 +90,19 @@ class OidcAuthorizationCodeFlowTest extends OidcTestBase {
     }
 
     @Test
-    void refreshTokensAreIssuedForEveryClientWithTheRefreshGrant_notOnlyWithOfflineAccess() throws Exception {
-        // Bewusst großzügig (siehe docs/decisions/oidc-provider.md): Dienste, die offline_access nicht anfordern, laufen trotzdem
+    void refreshTokensAreIssuedOnlyWhenOfflineAccessWasRequested() throws Exception {
         Browser b = loggedIn("joshua");
+        for (String scope : new String[]{"openid email", "openid"}) {
+            OidcTestClient.Pkce pkce = OidcTestClient.pkce();
+            String code = OidcTestClient.queryOf(b.get(vault.authorizeUri(pkce, "s", scope)).location()).get("code");
+            var tokens = vault.exchangeCode(code, pkce.verifier());
+            assertThat(tokens.status()).isEqualTo(200);
+            assertThat(tokens.refreshToken()).as("Refresh-Token ohne offline_access (%s)", scope).isEmpty();
+            assertThat(tokens.accessToken()).isNotBlank();
+        }
         OidcTestClient.Pkce pkce = OidcTestClient.pkce();
-        String code = OidcTestClient.queryOf(b.get(vault.authorizeUri(pkce, "s", "openid email")).location()).get("code");
+        String code = OidcTestClient.queryOf(b.get(vault.authorizeUri(pkce, "s", "openid offline_access")).location())
+                .get("code");
         assertThat(vault.exchangeCode(code, pkce.verifier()).refreshToken()).isNotBlank();
     }
 

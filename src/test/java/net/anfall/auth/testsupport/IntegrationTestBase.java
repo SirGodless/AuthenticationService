@@ -79,6 +79,8 @@ public abstract class IntegrationTestBase {
                 + "oauth2_authorization, oauth2_registered_client, users CASCADE").update();
         // Rechte, die beim Anlegen von Diensten entstehen (service.*), gehören nicht zu den eingebauten
         jdbc.sql("DELETE FROM permissions WHERE NOT builtin").update();
+        // Rollen, die Tests angelegt haben (die eingebaute Rolle Admin bleibt)
+        jdbc.sql("DELETE FROM roles WHERE NOT builtin").update();
         // Ausgemusterte Signierschlüssel aus Rotationstests nicht in die nächsten Tests mitnehmen
         jdbc.sql("DELETE FROM oidc_signing_keys WHERE retired_at IS NOT NULL").update();
         GREEN_MAIL.purgeEmailFromAllMailboxes();

@@ -52,7 +52,9 @@ class PermissionServiceTest extends IntegrationTestBase {
                 .param("u", id).param("r", ADMIN_ROLE).update();
         assertThat(permissions.has(id, "admin.users.view")).isTrue();
         assertThat(permissions.has(id, "admin.audit.view")).isTrue();
-        assertThat(permissions.has(id, "admin.something_new_later")).isTrue();     // auch später neue admin.*-Rechte
+        // auch später neu hinzukommende admin.*-Rechte sind in der Rolle Admin enthalten, ohne dass etwas nachgepflegt wird
+        jdbc.sql("INSERT INTO permissions (key, type, builtin) VALUES ('admin.something_new_later', 'boolean', true)").update();
+        assertThat(permissions.has(id, "admin.something_new_later")).isTrue();
         assertThat(permissions.has(id, "links.create")).isFalse();
         assertThat(permissions.has(id, "service.vault")).isFalse();                // kein Zugang zu Diensten von sich aus
     }

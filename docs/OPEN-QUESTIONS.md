@@ -9,9 +9,9 @@ Stand: Etappe 7 (18.11.2026). Alle sieben Etappen sind gebaut.
 1. `docs/DEPLOY.md` durchgehen (Ordner für Backups, `.env`, Caddy-Block, Mail-DNS).
 2. Die [A]-Annahmen unten bestätigen oder korrigieren (je Etappe eine Liste).
 3. **Schwachstellenprüfung der Abhängigkeiten** (**[U]**): In der Entwicklungsumgebung nicht möglich. Vor dem Release z. B. `mvn org.owasp:dependency-check-maven:check` laufen lassen. Aufgefallen: Tomcat 11.0.27 (neuer ist 11.0.29).
-4. Dienste anbinden und testen (**zurückgestellt**, du suchst eine Lösung für die Einbindung). Ob Single Sign-on in Vaultwarden, Audiobookshelf und Pelican so funktioniert wie am Provider getestet, geht nur auf dem Server.
+4. Eigene Dienste nach `docs/INTEGRATION.md` bauen (die Schnittstellen stehen, Dienste legst du im Dashboard an). Ob fremde Dienste wie Vaultwarden, Audiobookshelf und Pelican sich wie am Provider getestet verhalten, geht nur auf dem Server.
 
-**Bewusst offen oder nicht gebaut (**[O]**):** Dienste im Dashboard anlegen (bis dahin `auth-admin register-service`), Meldeweg, über den ein Dienst seine Farbe selbst schickt, Single Logout (Abmelden im Hub beendet die Sitzung beim Provider, nicht die der Dienste), Einbetten der Dienste, Passkeys, Löschfunktion für Konten, E-Mail-Änderung durch User, Pelican-Anbindung, Hub zusätzlich unter `anfall.net` (nur mit CORS, falls du es später willst).
+**Bewusst offen oder nicht gebaut (**[O]**):** Back-Channel-Logout (Abmelden im Hub beendet die Sitzung beim Provider, nicht die der Dienste, die lösen das über kurze Sitzungen und Refresh), Einbetten der Dienste, Passkeys, Löschfunktion für Konten, E-Mail-Änderung durch User, Pelican-Anbindung, Hub zusätzlich unter `anfall.net` (nur mit CORS, falls du es später willst).
 
 **Nicht prüfbar in der Entwicklung (**[U]**):** echter Mailversand und Zustellung an Gmail oder Outlook, Port 25 ausgehend, rDNS, echte Domains und Zertifikate, echte Dienste, Verhalten der Dienste bei Sperren (wie schnell ein Bann dort wirkt), Argon2-Dauer auf dem Zielsystem (Log beim Start).
 
@@ -38,6 +38,8 @@ Stand: Etappe 7 (18.11.2026). Alle sieben Etappen sind gebaut.
 - **Migrationen:** Noch nichts deployt, deshalb nach Themen umgeschnitten (Schema vorher und nachher identisch geprüft).
 
 ## Zu entscheiden
+
+0000. **Annahmen zu "Dienste anbinden"** (Einzelheiten in `decisions/service-integration.md`): Ein Dienst darf nur Farbe und Status melden (nicht Name, Beschreibung, Adresse). Rücksprung-Adressen dürfen auch App-Schemas wie `audiobookshelf://oauth` sein, `http` nur für localhost. Der Dienst wird bei Hub-Abmeldung nicht benachrichtigt. Ein vor dieser Änderung angelegter Dienst muss neu angelegt werden (noch nichts deployt, deshalb ohne Nacharbeit).
 
 000. **Annahmen aus Etappe 7 zur Bestätigung** (Einzelheiten in `decisions/security-and-delivery.md`):
    - Das Backup läuft als eigener Container mit eigener Zeitplan-Schleife (nicht Cron). Im Backup liegen Dump, die beiden Schlüssel (TOTP, OIDC) und der DKIM-Schlüssel, nicht der Pepper. **Hinweis:** Dump und Schlüssel liegen damit zusammen, wer den Ordner lesen kann, kann TOTP-Geheimnisse entschlüsseln. Behandle `backups/` wie die `.env`.

@@ -92,14 +92,8 @@ Unter `https://auth.anfall.net/admin`:
 
 1. **Users:** Dir selbst die direkten Rechte `links.create` und `links.max_active` (z. B. 5) geben, damit du Einladungslinks erzeugen kannst (die Rolle Admin enthält sie nicht).
 2. **Settings:** Gültigkeit der Einladungslinks einstellen, falls die Standardwerte (7 Tage, mit Rechten 3 Tage, Maximum 30) nicht passen.
-3. **Dienste anlegen** (Befehl, weil das Client-Geheimnis einmal angezeigt wird), siehe `README.md`, Abschnitt "Dienste anschließen":
-
-   ```bash
-   docker compose exec auth-backend auth-admin register-service vault Vaultwarden https://vault.anfall.net/identity/connect/oidc-signin
-   docker compose exec auth-backend auth-admin grant-service <username> vault
-   ```
-
-4. **Services:** Für jeden Dienst Beschreibung, Adresse zum Öffnen, Adresse für die Statusprüfung (z. B. `https://vault.anfall.net/alive`) und die Akzentfarbe eintragen. Danach siehst du ihn mit Status und eigener Farbe im Hub.
+3. **Services:** Dienst anlegen (Schlüssel, Name, Rücksprung-Adressen). Das **Client-Geheimnis** wird nur einmal angezeigt: Gleich im Dienst eintragen. Danach Beschreibung, Adresse zum Öffnen, Adresse für die Statusprüfung (z. B. `https://media.anfall.net/health`) und die Akzentfarbe eintragen. Wie sich ein Dienst anbindet, steht in `docs/INTEGRATION.md`. (Per Befehl geht es auch: `docker compose exec auth-backend auth-admin register-service <key> <Name> <redirect-uri>`.)
+4. **Users oder Roles:** Das Recht `service.<key>` einem Nutzer oder einer Rolle geben (oder `auth-admin grant-service <username> <key>`). Ohne das Recht sieht der Nutzer den Dienst nicht und bekommt keinen Code.
 5. **Profil** (`/account`): Sprache und Darstellung (hell, dunkel, wie das Gerät) einstellen.
 
 ### Einmal anmelden, überall drin

@@ -19,7 +19,7 @@ steht in `CLAUDE.md`.
 | `backup/` | Container für die Datenbank-Backups: Zeitplan, Aufbewahrung, Wiederherstellung und ein Test dafür. |
 | `deploy/` | `Caddyfile.snippet`: der Block, den du in deinen Caddy einträgst. |
 | `scripts/` | Skripte: Sperrliste laden (`fetch-blocklist.sh`), Betreiber-Befehle im Container (`auth-admin`). |
-| `docs/` | `DEPLOY.md` (Deployment), `decisions/` (Entscheidungen nach Thema, Inhaltsverzeichnis in `DECISIONS.md`), `NIST-800-63B-4.md`, `OPEN-QUESTIONS.md`, `THIRD-PARTY.md`. |
+| `docs/` | `INTEGRATION.md` (Leitfaden für Dienste), `api/openapi.yaml` (Schnittstellen für Dienste), `examples/` (lauffähiges Beispiel), `DEPLOY.md` (Deployment), `decisions/` (Entscheidungen nach Thema, Inhaltsverzeichnis in `DECISIONS.md`), `NIST-800-63B-4.md`, `OPEN-QUESTIONS.md`, `THIRD-PARTY.md`. |
 | `Dockerfile`, `docker-compose.yml`, `.env.example` | Image des Backends, der ganze Stack (Datenbank, Mailserver, Backend, UI), Vorlage für die Einstellungen. |
 | `CLAUDE.md` | Die verbindliche Spezifikation für beide Repos. |
 
@@ -165,7 +165,7 @@ Der Container `auth-backup` macht jeden Tag um 0 Uhr ein Backup (7 Tage aufbewah
 
 ## Hub und Dienste
 
-Nach dem Login zeigt `https://auth.anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du weiter mit `auth-admin register-service` an. Der Hub läuft auf `auth.anfall.net`, `anfall.net` leitet dorthin um. Wer im Hub angemeldet ist, ist auch in den Diensten angemeldet, ohne neue Eingabe, und die Dienste bleiben direkt aufrufbar (Einmal-Anmeldung über den OIDC-Provider). Darstellung (hell, dunkel, wie das Gerät) und Sprache stellt jeder auf der Profilseite ein. Eine vom Dienst gemeldete Farbe überschreibt die im Hub eingestellte, außer du setzt im Dashboard bei dem Dienst das Kästchen "Diese Farbe behalten" (einen Meldeweg für Dienste gibt es noch nicht).
+Nach dem Login zeigt `https://auth.anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du im Dashboard an (Reiter Services: Schlüssel, Name, Rücksprung-Adressen, das Client-Geheimnis wird einmal angezeigt). Wie ein Dienst sich anbindet, Rechte abfragt und Farbe oder Status meldet, steht in `docs/INTEGRATION.md`, die Schnittstelle in `docs/api/openapi.yaml`, ein lauffähiges Beispiel in `docs/examples/service_client.py`. Der Hub läuft auf `auth.anfall.net`, `anfall.net` leitet dorthin um. Wer im Hub angemeldet ist, ist auch in den Diensten angemeldet, ohne neue Eingabe, und die Dienste bleiben direkt aufrufbar (Einmal-Anmeldung über den OIDC-Provider). Darstellung (hell, dunkel, wie das Gerät) und Sprache stellt jeder auf der Profilseite ein. Eine vom Dienst gemeldete Farbe überschreibt die im Hub eingestellte, außer du setzt im Dashboard bei dem Dienst das Kästchen "Diese Farbe behalten" (einen Meldeweg für Dienste gibt es noch nicht).
 
 ## Einladungslinks
 

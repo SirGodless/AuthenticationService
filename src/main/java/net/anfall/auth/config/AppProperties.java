@@ -2,6 +2,7 @@ package net.anfall.auth.config;
 
 import java.time.Duration;
 import java.util.List;
+import net.anfall.auth.crypto.Tokens;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -12,6 +13,13 @@ public record AppProperties(
         String publicBaseUrl,
         /** Base64 eines 32-Byte-Schlüssels für die TOTP-Geheimnisse (AES-256-GCM). */
         String totpEncryptionKey,
+        /**
+         * Base64 eines 32-Byte-Schlüssels (Pepper): Er verschlüsselt jeden Passwort-Hash zusätzlich (NIST SP 800-63B-4).
+         * Muss ein anderer Schlüssel sein als der für TOTP und getrennt vom Datenbank-Backup aufbewahrt werden.
+         */
+        String passwordPepperKey,
+        /** Base64 eines 32-Byte-Schlüssels, der die privaten Signierschlüssel des OIDC-Providers verschlüsselt. */
+        String oidcKeyEncryptionKey,
         /** Name, der in der Authenticator-App angezeigt wird. */
         @DefaultValue("anfall.net") String totpIssuer,
         @DefaultValue("PT1H") Duration setupTokenTtl,
@@ -23,11 +31,13 @@ public record AppProperties(
         @DefaultValue Session session,
         @DefaultValue Tokens tokens,
         @DefaultValue Limits limits,
+        @DefaultValue Oidc oidc,
         /**
-         * Adressbereiche, deren X-Forwarded-For wir glauben (Caddy im Docker-Netz). Von anderen Adressen
-         * wird der Header ignoriert, sonst ließen sich IP-Sperren mit einem selbst gesetzten Header umgehen.
+         * Adressbereiche, deren X-Forwarded-For wir glauben (das Docker-Netz von Caddy, auf Joshuas Server
+         * 172.22.0.0/16 laut "docker network inspect caddy_net"). Von anderen Adressen wird der Header ignoriert,
+         * sonst ließen sich IP-Sperren mit einem selbst gesetzten Header umgehen. Standard im Code: nur lokal.
          */
-        @DefaultValue({"127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fc00::/7"})
+        @DefaultValue({"127.0.0.0/8", "::1/128"})
         List<String> trustedProxies) {
 
     /** Mindestwerte laut OWASP: 19 MiB, 2 Durchläufe, Parallelität 1. */
@@ -63,5 +73,14 @@ public record AppProperties(
             @DefaultValue("3") int mailRequestsMax,
             /** ... innerhalb dieser Zeit. */
             @DefaultValue("PT1H") Duration mailRequestsWindow) {
+    }
+
+    /** Laufzeiten der Tokens des OIDC-Providers. */
+    public record Oidc(
+            @DefaultValue("PT10M") Duration accessTokenTtl,
+            /** Der Refresh-Token wird bei jeder Nutzung erneuert (Rotation), die Frist läuft also immer neu. */
+            @DefaultValue("P30D") Duration refreshTokenTtl,
+            /** So lange bleibt ein ausgemusterter Signierschlüssel im JWKS (für noch gültige ID-Tokens). */
+            @DefaultValue("P2D") Duration retiredKeyGrace) {
     }
 }

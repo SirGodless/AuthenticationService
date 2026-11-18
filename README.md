@@ -2,11 +2,28 @@
 
 Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das Backend (Spring Boot) läuft hier,
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
-steht in `CLAUDE.md`, Entscheidungen in `docs/DECISIONS.md`, offene Fragen in `docs/OPEN-QUESTIONS.md`.
+steht in `CLAUDE.md`.
 
-Stand: Etappe 2 (Konten, Login, Passwort-Reset, Mailversand). Der OIDC-Provider kommt mit Etappe 3.
+**Stand:** Etappe 7 (alle Etappen gebaut). Zuletzt: Backup-Container, Caddy-Block, Absicherung, Darstellung als Kontoeinstellung. Davor: Hub Seitenmenü mit den Diensten des Users, Statusanzeige, Akzentfarbe pro Dienst, Profilseite, Hell/Dunkel. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Registrierung nur über Einladungslinks (Erstellen, Gültigkeit, Platzlimit, Prüfung des Erstellers beim Einlösen, IP-Sperre bei falschen Links).
 
-## Setup in Kürze
+## Ordnerübersicht
+
+| Ordner / Datei | Was dort liegt |
+| :- | :- |
+| `src/main/java/net/anfall/auth/` | Der Backend-Code, ein Paket pro Fachthema (`account`, `login`, `password`, `twofactor`, `oidc`, `service`, `permission`, `role`, `useradmin`, `setup`, `audit`, `mail`, ...). Die Pakete sind in `docs/decisions/code-structure.md` erklärt. |
+| `src/main/resources/db/migration/` | Datenbank-Migrationen (Flyway), eine pro Änderung. Schon gelaufene werden nie geändert. |
+| `src/main/resources/mail/` | Mail-Texte, eine Datei pro Mail und Sprache (Englisch Standard, `_de` Deutsch). |
+| `src/main/resources/application.yml` | Einstellungen, die aus Umgebungsvariablen kommen. |
+| `src/test/java/net/anfall/auth/` | Tests, gleiche Paketstruktur wie der Code. `testsupport/` enthält die gemeinsamen Hilfen (Test-Datenbank, Test-Mailserver, Browser-Simulation). |
+| `tests/e2e/` | Ende-zu-Ende-Test im echten Browser mit Test-Caddy (`run.sh`). |
+| `backup/` | Container für die Datenbank-Backups: Zeitplan, Aufbewahrung, Wiederherstellung und ein Test dafür. |
+| `deploy/` | `Caddyfile.snippet`: der Block, den du in deinen Caddy einträgst. |
+| `scripts/` | Skripte: Sperrliste laden (`fetch-blocklist.sh`), Betreiber-Befehle im Container (`auth-admin`). |
+| `docs/` | `INTEGRATION.md` (Leitfaden für Dienste), `api/openapi.yaml` (Schnittstellen für Dienste), `examples/` (lauffähiges Beispiel), `DEPLOY.md` (Deployment), `decisions/` (Entscheidungen nach Thema, Inhaltsverzeichnis in `DECISIONS.md`), `NIST-800-63B-4.md`, `OPEN-QUESTIONS.md`, `THIRD-PARTY.md`. |
+| `Dockerfile`, `docker-compose.yml`, `.env.example` | Image des Backends, der ganze Stack (Datenbank, Mailserver, Backend, UI), Vorlage für die Einstellungen. |
+| `CLAUDE.md` | Die verbindliche Spezifikation für beide Repos. |
+
+## Starten
 
 Ausführlich in `docs/DEPLOY.md`. Der Mailserver hat unten einen eigenen Abschnitt, weil dafür auf dem Server und im DNS
 etwas zu tun ist, bevor Mails ankommen.
@@ -20,6 +37,20 @@ cp .env.example .env        # Werte eintragen (siehe Kommentare in der Datei)
 docker compose up -d --build
 docker compose logs auth-backend | grep SETUP-LINK   # Link für den ersten Admin
 ```
+
+## Testen
+
+```bash
+mvn test            # Unit- und Integrationstests, brauchen Docker (Test-PostgreSQL)
+tests/e2e/run.sh    # Ende-zu-Ende im Browser, siehe Kommentar in der Datei (Node mit Playwright nötig)
+backup/test.sh      # Backup: Aufbewahrung über 400 nachgespielte Tage und Wiederherstellung (braucht Docker)
+```
+
+Zum Entwickeln mit Test-Mailserver statt dem echten: `MAIL_HOST=mailpit`, `MAIL_PORT=1025` in `.env` und
+`docker compose --profile dev up -d --build`.
+
+Die Sperrliste für Passwörter lädt der Docker-Build automatisch. Ohne Docker: `scripts/fetch-blocklist.sh data` und
+`PASSWORD_BLOCKLIST_FILE=data/100k-most-used-passwords-NCSC.txt` setzen.
 
 ## Mailserver
 
@@ -120,8 +151,41 @@ Postfix versucht es weiter.
 - Mails werden **ohne Wiederholung durch die Anwendung** versendet: Schlägt die Übergabe an den Mailserver fehl,
   steht ein Fehler im Backend-Log und der User fordert die Mail neu an. Ist die Übergabe geklappt, wiederholt Postfix die
   Auslieferung selbst über mehrere Tage.
-- Rückläufer (Bounces) gehen an die Absenderadresse `MAIL_FROM` (`no-reply@anfall.net`). Dort muss ein Postfach oder eine
-  Weiterleitung existieren, sonst gehen sie verloren (offene Frage in `docs/OPEN-QUESTIONS.md`).
+- Es gibt **keinen Posteingang**. Rückläufer (Bounces) gehen an die Absenderadresse `MAIL_FROM` und werden dort vom
+  Mailserver verworfen. Wenn eine Mail nicht zugestellt werden kann, siehst du es nur im Log:
+  `docker compose logs mail | grep status=bounced`.
+
+## Admin-Dashboard und 2FA-Seite
+
+Unter `https://auth.anfall.net/admin` verwaltest du Benutzer (suchen, bannen, 2FA zurücksetzen, Passwort-Reset erzwingen, Rollen und direkte Rechte), Rollen, Rechte und liest das Protokoll. Welche Reiter du siehst, hängt von deinen `admin.*`-Rechten ab. Admin-Funktionen verlangen eine eingerichtete 2FA, ohne sie zeigt die Seite einen Hinweis mit Link zu `https://auth.anfall.net/account/2fa`. Dort richtet jeder User seine 2FA ein, erzeugt neue Wiederherstellungscodes und (nur ohne Verwaltungsrechte) schaltet sie ab. Die Dienste (Clients) verwaltest du bis Etappe 6 weiter per Befehl (siehe unten).
+
+## Backup
+
+Der Container `auth-backup` macht jeden Tag um 0 Uhr ein Backup (7 Tage aufbewahrt) und am Monatsersten ein weiteres (1 Jahr). Ziel ist der Ordner `backups/` auf dem Server. Einrichtung, Prüfen und Wiederherstellen stehen in `docs/DEPLOY.md`, Abschnitt Backup.
+
+## Hub und Dienste
+
+Nach dem Login zeigt `https://auth.anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du im Dashboard an (Reiter Services: Schlüssel, Name, Rücksprung-Adressen, das Client-Geheimnis wird einmal angezeigt). Wie ein Dienst sich anbindet, Rechte abfragt und Farbe oder Status meldet, steht in `docs/INTEGRATION.md`, die Schnittstelle in `docs/api/openapi.yaml`, ein lauffähiges Beispiel in `docs/examples/service_client.py`. Der Hub läuft auf `auth.anfall.net`, `anfall.net` leitet dorthin um. Wer im Hub angemeldet ist, ist auch in den Diensten angemeldet, ohne neue Eingabe, und die Dienste bleiben direkt aufrufbar (Einmal-Anmeldung über den OIDC-Provider). Darstellung (hell, dunkel, wie das Gerät) und Sprache stellt jeder auf der Profilseite ein. Eine vom Dienst gemeldete Farbe überschreibt die im Hub eingestellte, außer du setzt im Dashboard bei dem Dienst das Kästchen "Diese Farbe behalten" (einen Meldeweg für Dienste gibt es noch nicht).
+
+## Einladungslinks
+
+Konten gibt es nur über Einladungslinks. Ein User mit dem Recht `links.create` und einem Limit `links.max_active` erstellt sie auf `https://auth.anfall.net/account/links` und schickt sie weiter. Ein Link ist standardmäßig 7 Tage gültig (1 Stunde bis 30 Tage, mit Rolle oder Rechten höchstens 3 Tage), gilt einmal und wird erst beim Absenden des Formulars verbraucht. Er wird nur einmal angezeigt. Die Grenzen stellst du im Dashboard unter "Settings" ein, dort hebst du auch IP-Sperren auf (nach mehr als 3 falschen Links pro Stunde gilt eine Sperre von einem Tag). Das erste Konto mit diesen Rechten gibst du dir selbst im Dashboard unter "Users" (direkte Rechte `links.create` und `links.max_active`).
+
+## Dienste anschließen (Vaultwarden, Audiobookshelf)
+
+Ein Dienst ist ein OIDC-Client. Bis das Dashboard auch Dienste verwaltet, legst du ihn mit einem Befehl an. Beispiel mit der Rücksprungadresse aus der Vaultwarden-Anleitung:
+
+```bash
+docker compose exec auth-backend auth-admin register-service vault Vaultwarden https://vault.anfall.net/identity/connect/oidc-signin
+```
+
+Der Befehl zeigt **einmal** die Client-ID (`vault`) und das Client-Secret an. Trage beides im Dienst ein, als Aussteller (Authority, Issuer) gilt `https://auth.anfall.net`. Danach gibst du einem Konto den Zugang:
+
+```bash
+docker compose exec auth-backend auth-admin grant-service joshua vault
+```
+
+Ohne dieses Recht gibt der Provider keinen Code aus, der User sieht die Seite "Kein Zugang". Das Recht wird bei jedem Token-Refresh neu geprüft. Die genauen Einstellungen der Dienste (Scopes `openid profile email offline_access` (ohne `offline_access` gibt es keinen Refresh-Token), PKCE einschalten, Rücksprungadressen) stehen in deren Anleitungen. Das Zusammenspiel mit den echten Diensten testest du nach dem Deployment (in der Entwicklung nicht prüfbar).
 
 ## Betreiber-Befehle
 
@@ -132,17 +196,12 @@ Wiederherstellungscodes und beendet alle Sitzungen:
 docker compose exec auth-backend auth-admin reset-2fa joshua
 ```
 
-Danach reicht beim Login das Passwort. Die 2FA wieder einzurichten ist ab Etappe 6 über die Profilseite möglich.
+Danach reicht beim Login das Passwort. Die 2FA richtest du wieder auf `https://auth.anfall.net/account/2fa` ein.
 
-## Entwickeln und Testen
+Neuen Signierschlüssel für die Tokens erzeugen (der alte bleibt zwei Tage zum Prüfen im JWKS):
 
 ```bash
-mvn test            # Unit- und Integrationstests, brauchen Docker (Test-PostgreSQL)
-tests/e2e/run.sh    # Ende-zu-Ende im Browser, siehe Kommentar in der Datei
+docker compose exec auth-backend auth-admin rotate-signing-key
 ```
 
-Zum Entwickeln mit Test-Mailserver statt dem echten: `MAIL_HOST=mailpit`, `MAIL_PORT=1025` in `.env` und
-`docker compose --profile dev up -d --build`.
-
-Die Sperrliste für Passwörter lädt der Docker-Build automatisch. Ohne Docker: `scripts/fetch-blocklist.sh data` und
-`PASSWORD_BLOCKLIST_FILE=data/100k-most-used-passwords-NCSC.txt` setzen.
+Alle Befehle zeigt `auth-admin` ohne Parameter an.

@@ -11,7 +11,7 @@ import net.anfall.auth.config.AppProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/** Verschlüsselt TOTP-Geheimnisse mit AES-256-GCM. Der Schlüssel kommt aus der Umgebung. */
+/** Verschlüsselt Geheimnisse (TOTP-Schlüssel, Passwort-Hashes) mit AES-256-GCM. Der Schlüssel kommt aus der Umgebung. */
 @Component
 public class SecretCipher {
 
@@ -22,18 +22,19 @@ public class SecretCipher {
 
     @Autowired
     public SecretCipher(AppProperties props) {
-        this(props.totpEncryptionKey());
+        this(props.totpEncryptionKey(), "TOTP_ENCRYPTION_KEY");
     }
 
-    public SecretCipher(String base64Key) {
+    /** @param settingName Name der Einstellung, nur für verständliche Fehlermeldungen */
+    public SecretCipher(String base64Key, String settingName) {
         byte[] raw;
         try {
             raw = Base64.getDecoder().decode(base64Key == null ? "" : base64Key.trim());
         } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("TOTP_ENCRYPTION_KEY ist kein gültiges Base64", e);
+            throw new IllegalStateException(settingName + " ist kein gültiges Base64", e);
         }
         if (raw.length != 32) {
-            throw new IllegalStateException("TOTP_ENCRYPTION_KEY muss genau 32 Byte (Base64) lang sein, "
+            throw new IllegalStateException(settingName + " muss genau 32 Byte (Base64) lang sein, "
                     + "erzeugen mit: openssl rand -base64 32");
         }
         this.key = new SecretKeySpec(raw, "AES");

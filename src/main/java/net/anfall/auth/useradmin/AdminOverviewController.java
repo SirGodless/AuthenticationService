@@ -26,7 +26,9 @@ class AdminOverviewController {
         SECTIONS.put("users", "admin.users.view");
         SECTIONS.put("roles", "admin.roles.manage");
         SECTIONS.put("permissions", "admin.permissions.manage");
+        SECTIONS.put("links", "admin.links.view_all");
         SECTIONS.put("audit", "admin.audit.view");
+        SECTIONS.put("settings", "admin.settings.manage");
     }
 
     private final PermissionService permissions;

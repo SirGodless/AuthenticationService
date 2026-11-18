@@ -42,6 +42,8 @@ class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/setup/**").permitAll()
+                        // Registrierung über Einladungslink: Der geheime Token im Pfad ist die Berechtigung
+                        .requestMatchers("/api/invite/**").permitAll()
                         // Öffentlich: Anmelden, Mail-Links, Passwort vergessen. Der Rest braucht eine Sitzung.
                         .requestMatchers("/api/auth/me", "/api/auth/login", "/api/auth/login/**",
                                 "/api/auth/confirm-email", "/api/auth/confirm-email/**",
@@ -49,7 +51,7 @@ class SecurityConfig {
                                 "/api/auth/password-reset/**").permitAll()
                         // Health läuft auf dem internen Management-Port 8081 und ist von außen nicht erreichbar.
                         .requestMatchers("/actuator/health/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/admin/**").authenticated()
+                        .requestMatchers("/api/auth/**", "/api/admin/**", "/api/invites/**").authenticated()
                         .anyRequest().denyAll());
         return http.build();
     }

@@ -75,7 +75,7 @@ public abstract class IntegrationTestBase {
     void cleanState() throws Exception {
         // permissions und roles bleiben (kommen aus der Migration)
         jdbc.sql("TRUNCATE audit_log, recovery_codes, user_totp, user_credentials, user_pii, user_roles, "
-                + "setup_tokens, login_sessions, email_tokens, throttle, role_permissions, user_permissions, services, "
+                + "setup_tokens, login_sessions, email_tokens, throttle, invite_links, invite_ip_blocks, settings, role_permissions, user_permissions, services, "
                 + "oauth2_authorization, oauth2_registered_client, users CASCADE").update();
         // Rechte, die beim Anlegen von Diensten entstehen (service.*), gehören nicht zu den eingebauten
         jdbc.sql("DELETE FROM permissions WHERE NOT builtin").update();

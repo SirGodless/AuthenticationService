@@ -30,6 +30,9 @@ public class ServiceRegistrationService {
 
     private static final Pattern KEY = Pattern.compile("[a-z0-9][a-z0-9_-]{1,31}");
 
+    /** Scope des Tokens, mit dem ein Dienst die Dienst-Schnittstelle (/api/service/*) aufruft. */
+    public static final String SERVICE_SCOPE = "service";
+
     /** Der angelegte Dienst und das Client-Geheimnis im Klartext (wird nur jetzt einmal angezeigt). */
     public record RegisteredService(ServiceInfo service, String clientSecret) {
     }
@@ -81,18 +84,80 @@ public class ServiceRegistrationService {
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                // client_credentials: Der Dienst selbst (nicht ein User) holt sich damit ein Token für die Dienst-Schnittstelle
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .scope(OidcScopes.OPENID).scope(OidcScopes.PROFILE).scope(OidcScopes.EMAIL).scope("offline_access")
+                .scope(SERVICE_SCOPE)
                 .clientSettings(ClientSettings.builder()
                         .requireProofKey(true)                  // PKCE für alle Clients
                         .requireAuthorizationConsent(false)     // eigene Dienste, keine Zustimmungsseite
                         .build())
                 .tokenSettings(tokenSettings());
-        redirectUris.forEach(client::redirectUri);
+        redirectUris.stream().map(ServiceRegistrationService::cleanRedirectUri).forEach(client::redirectUri);
         clients.save(client.build());
 
         ServiceInfo service = new ServiceInfo(key, displayName, key, permission, "new_tab", null, "", null, null, null, false);
         services.insert(service);
         return new RegisteredService(service, secret);
+    }
+
+    /** Ersetzt die erlaubten Rücksprung-Adressen eines Dienstes. */
+    @Transactional
+    public void replaceRedirectUris(String key, List<String> redirectUris) {
+        RegisteredClient existing = clientOf(key);
+        if (redirectUris == null || redirectUris.isEmpty() || redirectUris.size() > 10) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "redirect_uris_invalid");
+        }
+        List<String> cleaned = redirectUris.stream().map(ServiceRegistrationService::cleanRedirectUri).distinct().toList();
+        clients.save(RegisteredClient.from(existing).redirectUris(set -> {
+            set.clear();
+            set.addAll(cleaned);
+        }).build());
+    }
+
+    /** Neues Client-Geheimnis. Das alte gilt sofort nicht mehr (schon ausgestellte Tokens bleiben gültig). Gibt das neue im Klartext zurück. */
+    @Transactional
+    public String regenerateSecret(String key) {
+        RegisteredClient existing = clientOf(key);
+        String secret = Tokens.newToken();
+        clients.save(RegisteredClient.from(existing).clientSecret(passwordEncoder.encode(secret)).build());
+        return secret;
+    }
+
+    public List<String> redirectUrisOf(String key) {
+        return List.copyOf(clientOf(key).getRedirectUris());
+    }
+
+    private RegisteredClient clientOf(String key) {
+        RegisteredClient client = clients.findByClientId(key);
+        if (client == null || services.findByKey(key).isEmpty()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "service_unknown");
+        }
+        return client;
+    }
+
+    /**
+     * Rücksprung-Adressen: https, http nur für localhost, oder ein eigenes Schema einer App (z. B. audiobookshelf://oauth).
+     * Keine Platzhalter, kein Fragment, nicht länger als 300 Zeichen, und nie javascript:, data: oder file:.
+     */
+    static String cleanRedirectUri(String value) {
+        String v = value == null ? "" : value.trim();
+        try {
+            java.net.URI uri = java.net.URI.create(v);
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
+            boolean forbidden = List.of("javascript", "data", "file", "vbscript", "about", "blob", "ftp").contains(scheme);
+            boolean web = scheme.equals("https")
+                    || (scheme.equals("http") && List.of("localhost", "127.0.0.1", "[::1]").contains(String.valueOf(uri.getHost())));
+            boolean app = scheme.matches("[a-z][a-z0-9+.-]{2,30}") && !scheme.equals("http") && !scheme.equals("https") && !forbidden;
+            boolean ok = v.length() <= 300 && !v.contains("*") && uri.getFragment() == null && !forbidden
+                    && ((web && uri.getHost() != null) || app);
+            if (!ok) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "redirect_uri_invalid");
+            }
+            return v;
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "redirect_uri_invalid");
+        }
     }
 
     private TokenSettings tokenSettings() {

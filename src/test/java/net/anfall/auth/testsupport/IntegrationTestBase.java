@@ -70,6 +70,7 @@ public abstract class IntegrationTestBase {
     @Autowired protected JsonMapper json;
     @Autowired protected AccountService accounts;
     @Autowired protected SecretCipher cipher;
+    @Autowired protected net.anfall.auth.service.ServiceHealthService serviceHealth;
 
     @BeforeEach
     void cleanState() throws Exception {
@@ -83,6 +84,7 @@ public abstract class IntegrationTestBase {
         jdbc.sql("DELETE FROM roles WHERE NOT builtin").update();
         // Ausgemusterte Signierschlüssel aus Rotationstests nicht in die nächsten Tests mitnehmen
         jdbc.sql("DELETE FROM oidc_signing_keys WHERE retired_at IS NOT NULL").update();
+        serviceHealth.clearAll();
         GREEN_MAIL.purgeEmailFromAllMailboxes();
     }
 

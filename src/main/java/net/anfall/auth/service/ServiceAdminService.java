@@ -12,9 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Anzeige-Eigenschaften der Dienste im Dashboard ändern (Recht admin.services.manage): Name, Beschreibung, Adresse zum
- * Öffnen, Akzentfarbe und Adresse für die Statusprüfung. Das Anlegen eines Dienstes samt OIDC-Client bleibt vorerst
- * beim Befehl register-service.
+ * Dienste im Dashboard verwalten (Recht admin.services.manage): anlegen (mit OIDC-Client und Recht), Anzeige-Eigenschaften
+ * (Name, Beschreibung, Adresse, Akzentfarbe, Statusadresse), Rücksprung-Adressen und neues Client-Geheimnis.
+ * Das Client-Geheimnis steht nur in der Antwort auf Anlegen und Erneuern, danach nirgends mehr im Klartext.
  */
 @Service
 public class ServiceAdminService {
@@ -26,16 +26,62 @@ public class ServiceAdminService {
                          String healthUrl) {
     }
 
+    /** Eingaben zum Anlegen. Alles außer Schlüssel, Name und Rücksprung-Adressen ist optional. */
+    public record Create(String key, String displayName, List<String> redirectUris, String description, String url,
+                         String accentColor, String healthUrl) {
+    }
+
+    /** Der neue Dienst und sein Client-Geheimnis im Klartext (wird nur jetzt angezeigt). */
+    public record Created(ServiceAdminView service, String clientSecret) {
+    }
+
     private final ServiceRepository services;
+    private final ServiceRegistrationService registration;
     private final AuditLog audit;
 
-    public ServiceAdminService(ServiceRepository services, AuditLog audit) {
+    public ServiceAdminService(ServiceRepository services, ServiceRegistrationService registration, AuditLog audit) {
         this.services = services;
+        this.registration = registration;
         this.audit = audit;
     }
 
-    public List<ServiceInfo> list() {
-        return services.findAll();
+    public List<ServiceAdminView> list() {
+        return services.findAll().stream().map(s -> ServiceAdminView.of(s, registration.redirectUrisOf(s.key()))).toList();
+    }
+
+    @Transactional
+    public Created create(UUID actor, Create c, String ip) {
+        // Zusatzfelder zuerst prüfen: Bei einem Fehler soll nichts halb angelegt sein
+        String description = c.description() == null ? "" : c.description().trim();
+        if (description.length() > 200) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "service_description_invalid");
+        }
+        String url = cleanUrl(c.url(), "service_url_invalid");
+        String healthUrl = cleanUrl(c.healthUrl(), "service_health_url_invalid");
+        String color = cleanColor(c.accentColor());
+        String name = c.displayName() == null ? "" : c.displayName().trim();
+        if (name.isEmpty() || name.length() > 60) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "service_name_invalid");
+        }
+        var registered = registration.register(c.key() == null ? null : c.key().trim(), name, c.redirectUris());
+        String key = registered.service().key();
+        services.updateDisplay(key, name, description, url, color, false, healthUrl);
+        audit.record(actor, null, "service.created", Map.of("service", key), ip);
+        ServiceInfo info = services.findByKey(key).orElseThrow();
+        return new Created(ServiceAdminView.of(info, registration.redirectUrisOf(key)), registered.clientSecret());
+    }
+
+    @Transactional
+    public void setRedirectUris(UUID actor, String key, List<String> redirectUris, String ip) {
+        registration.replaceRedirectUris(key, redirectUris);
+        audit.record(actor, null, "service.redirect_uris_changed", Map.of("service", key, "count", redirectUris.size()), ip);
+    }
+
+    @Transactional
+    public String regenerateSecret(UUID actor, String key, String ip) {
+        String secret = registration.regenerateSecret(key);
+        audit.record(actor, null, "service.secret_regenerated", Map.of("service", key), ip);
+        return secret;
     }
 
     @Transactional

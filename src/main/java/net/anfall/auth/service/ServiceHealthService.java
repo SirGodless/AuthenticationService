@@ -37,6 +37,11 @@ public class ServiceHealthService {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(TIMEOUT)
             .followRedirects(HttpClient.Redirect.NEVER).build();
     private final Map<String, Status> results = new ConcurrentHashMap<>();
+    /** Vom Dienst gemeldeter Status mit Ablaufzeit. Solange er gilt, hat er Vorrang vor der Abfrage. */
+    private record Reported(Status status, Instant validUntil) {
+    }
+
+    private final Map<String, Reported> reported = new ConcurrentHashMap<>();
     private final String mailHost;
     private final int mailPort;
     private volatile Status mail = Status.UNKNOWN;
@@ -49,7 +54,24 @@ public class ServiceHealthService {
     }
 
     public Status status(String serviceKey) {
+        Reported r = reported.get(serviceKey);
+        if (r != null && r.validUntil().isAfter(Instant.now())) {
+            return r.status();
+        }
         return results.getOrDefault(serviceKey, Status.UNKNOWN);
+    }
+
+    /** Der Dienst meldet seinen Status selbst (Dienst-Schnittstelle). Gilt für die angegebene Zeit, danach gilt wieder die Abfrage. */
+    public void report(String serviceKey, String state, java.time.Duration validFor) {
+        Instant now = Instant.now();
+        reported.put(serviceKey, new Reported(new Status(state, now), now.plus(validFor)));
+    }
+
+    /** Vergisst alle Ergebnisse und Meldungen (die Status liegen nur im Speicher). Gedacht für Tests. */
+    public void clearAll() {
+        results.clear();
+        reported.clear();
+        mail = Status.UNKNOWN;
     }
 
     public Status mailStatus() {

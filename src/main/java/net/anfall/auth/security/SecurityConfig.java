@@ -20,7 +20,7 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 class SecurityConfig {
 
     @Bean
-    @Order(2)
+    @Order(3)
     SecurityFilterChain filterChain(HttpSecurity http, SessionSecurityContextRepository contexts) throws Exception {
         // CSRF-Schutz für alles, was eine Sitzung nutzt: Der Token steht in einem lesbaren Cookie,
         // die UI schickt ihn als Header X-XSRF-TOKEN zurück. Ein fremder Browser-Tab kennt ihn nicht.

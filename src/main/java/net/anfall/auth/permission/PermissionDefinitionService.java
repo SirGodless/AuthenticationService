@@ -22,20 +22,26 @@ public class PermissionDefinitionService {
     private static final Pattern KEY = Pattern.compile("[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+");
 
     /** Recht mit seiner Verwendung für die Anzeige. */
-    public record PermissionInfo(PermissionDefinition definition, List<String> enforcedByServices, long assignedCount) {
+    public record PermissionInfo(PermissionDefinition definition, List<String> enforcedByServices, long assignedCount,
+                                 String ownerService) {
     }
 
+    private final net.anfall.auth.service.ServiceRepository serviceRepository;
     private final PermissionRepository repository;
     private final AuditLog audit;
 
-    public PermissionDefinitionService(PermissionRepository repository, AuditLog audit) {
+    public PermissionDefinitionService(PermissionRepository repository, AuditLog audit,
+                                       net.anfall.auth.service.ServiceRepository serviceRepository) {
+        this.serviceRepository = serviceRepository;
         this.repository = repository;
         this.audit = audit;
     }
 
     public List<PermissionInfo> list() {
+        var keys = serviceRepository.findAll().stream().map(s -> s.key()).toList();
+        // Ein Recht gehört zu dem Dienst, dessen Schlüssel sein Präfix ist (media.upload gehört zu media). Der Dienst fragt es über die Dienst-Schnittstelle ab.
         return repository.findAll().stream().map(d -> new PermissionInfo(d, repository.servicesRequiring(d.key()),
-                repository.valueCount(d.key()))).toList();
+                repository.valueCount(d.key()), keys.stream().filter(k -> d.key().startsWith(k + ".")).findFirst().orElse(null))).toList();
     }
 
     @Transactional

@@ -31,6 +31,9 @@ import org.springframework.stereotype.Component;
 @Component
 class OidcTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext> {
 
+    /** Claim, der Dienst-Tokens von User-Tokens unterscheidet. */
+    static final String TOKEN_USE = "token_use";
+    static final String SERVICE_TOKEN = "service";
     private static final String ACCESS_TOKEN = "access_token";
     private static final String ID_TOKEN = "id_token";
 
@@ -52,6 +55,14 @@ class OidcTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext> {
     @Override
     public void customize(JwtEncodingContext context) {
         String tokenType = context.getTokenType().getValue();
+        // Token eines Dienstes für die Dienst-Schnittstelle (client_credentials): kein User dahinter, nur markieren.
+        // Das Merkmal gibt es in keinem User-Token, so lässt sich ein User-Token nie als Dienst-Token benutzen.
+        if (AuthorizationGrantType.CLIENT_CREDENTIALS.equals(context.getAuthorizationGrantType())) {
+            if (ACCESS_TOKEN.equals(tokenType)) {
+                context.getClaims().claim(TOKEN_USE, SERVICE_TOKEN);
+            }
+            return;
+        }
         Authentication principal = context.getPrincipal();
         UUID userId = UUID.fromString(principal.getName());
         AccountContact account = accounts.findContactById(userId).orElse(null);

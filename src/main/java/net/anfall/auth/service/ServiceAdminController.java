@@ -34,6 +34,31 @@ class ServiceAdminController {
         return ApiResponses.json(service.list());
     }
 
+    record RedirectUrisBody(java.util.List<String> redirectUris) {
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/api/admin/services")
+    ResponseEntity<Object> create(@AuthenticationPrincipal AccountPrincipal me, @RequestBody ServiceAdminService.Create body,
+                                  HttpServletRequest request) {
+        guard.require(me.id(), "admin.services.manage");
+        return ApiResponses.json(service.create(me.id(), body, clientIp.of(request)));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/api/admin/services/{key}/redirect-uris")
+    ResponseEntity<Map<String, Object>> redirectUris(@AuthenticationPrincipal AccountPrincipal me, @PathVariable String key,
+                                                     @RequestBody RedirectUrisBody body, HttpServletRequest request) {
+        guard.require(me.id(), "admin.services.manage");
+        service.setRedirectUris(me.id(), key, body.redirectUris(), clientIp.of(request));
+        return ApiResponses.ok();
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/api/admin/services/{key}/secret")
+    ResponseEntity<Map<String, Object>> secret(@AuthenticationPrincipal AccountPrincipal me, @PathVariable String key,
+                                               HttpServletRequest request) {
+        guard.require(me.id(), "admin.services.manage");
+        return ApiResponses.ok(Map.of("clientSecret", service.regenerateSecret(me.id(), key, clientIp.of(request))));
+    }
+
     @PatchMapping("/api/admin/services/{key}")
     ResponseEntity<Map<String, Object>> update(@AuthenticationPrincipal AccountPrincipal me, @PathVariable String key,
                                                @RequestBody ServiceAdminService.Update body, HttpServletRequest request) {

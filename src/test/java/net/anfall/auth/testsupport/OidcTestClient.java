@@ -101,6 +101,11 @@ public class OidcTestClient {
         return new TokenResponse(res.getStatus(), body.isBlank() ? json.createObjectNode() : json.readTree(body));
     }
 
+    /** Token des Dienstes selbst (client_credentials, Scope "service") für die Dienst-Schnittstelle. */
+    public TokenResponse serviceToken() throws Exception {
+        return token(Map.of("grant_type", "client_credentials", "scope", "service"));
+    }
+
     public TokenResponse tokenWithSecret(Map<String, String> params, String secret) throws Exception {
         return new OidcTestClient(mvc, json, clientId, secret).token(params);
     }

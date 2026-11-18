@@ -55,6 +55,11 @@ public class ServiceRepository {
                 .param("l", accentLocked).param("h", healthUrl).param("k", key).update();
     }
 
+    /** Vom Dienst gemeldete Farbe (null löscht sie). */
+    public void setReportedColor(String key, String color) {
+        jdbc.sql("UPDATE services SET reported_accent_color = :c WHERE key = :k").param("c", color).param("k", key).update();
+    }
+
     private static ServiceInfo map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
         return new ServiceInfo(rs.getString("key"), rs.getString("display_name"), rs.getString("client_id"),
                 rs.getString("required_permission"), rs.getString("open_mode"), rs.getString("health_url"),

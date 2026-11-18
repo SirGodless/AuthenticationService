@@ -224,7 +224,7 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p5.fill('#code', recovery[3]); await p5.click('#step-code button[type=submit]');
   await p5.waitForURL(`${base}/admin`);
   await p5.waitForSelector('#tabs .tab');
-  ok(await p5.locator('#tabs .tab').count() === 4, 'Dashboard: Rücksprung nach dem Login, vier Reiter für den Admin');
+  ok(await p5.locator('#tabs .tab').count() === 6, 'Dashboard: Rücksprung nach dem Login, sechs Reiter für den Admin');
   await p5.selectOption('#lang', 'de');
   await p5.waitForFunction(() => [...document.querySelectorAll('#tabs .tab')].some((t) => t.textContent === 'Benutzer'));
   ok(true, 'Dashboard: Reiter wechseln mit der Sprache');
@@ -273,6 +273,88 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p3.waitForSelector('#codes li');
   const fresh10 = await p3.locator('#codes li').allTextContents();
   ok(fresh10.length === 10 && !fresh10.includes(recovery[4]), '2FA-Seite: neue Wiederherstellungscodes erzeugt');
+  // ---------- Einladungslinks (Etappe 5) ----------
+  // joshua bekommt über das Dashboard die Rechte zum Erstellen von Links (die Rolle Admin gibt sie nicht von selbst)
+  await p3.goto(`${base}/admin`);
+  await p3.waitForSelector('#panel table');
+  await p3.click('#panel tbody button.link');
+  await p3.waitForSelector('#panel h3');
+  const direct = '#panel section:has(h3:has-text("Direct rights"))';
+  await p3.selectOption(`${direct} select`, 'links.create');
+  await p3.click(`${direct} button:has-text("Set right")`);
+  await p3.waitForSelector(`${direct} li:has-text("links.create")`);
+  await p3.selectOption(`${direct} select`, 'links.max_active');
+  await p3.fill(`${direct} input[type=number]`, '5');
+  await p3.click(`${direct} button:has-text("Set right")`);
+  await p3.waitForSelector(`${direct} li:has-text("links.max_active: 5")`);
+  ok(true, 'Links: Rechte links.create und links.max_active über das Dashboard vergeben');
+
+  await p3.goto(`${base}/account/links`);
+  await p3.waitForSelector('#create-form:not([hidden])');
+  ok((await p3.textContent('#usage')).includes('0') && (await p3.textContent('#usage')).includes('5'), 'Links: Seite zeigt offene Links und Limit');
+  await p3.click('#create-form button[type=submit]');
+  await p3.waitForSelector('#created:not([hidden])');
+  const inviteUrl = await p3.textContent('#created-url');
+  ok(/^https:\/\/auth\.test\/invite\/[A-Za-z0-9_-]{43}$/.test(inviteUrl), 'Links: neuer Link wird einmal angezeigt');
+  await p3.waitForSelector('#list tbody tr');
+  ok((await p3.textContent('#list tbody')).includes('active'), 'Links: Liste zeigt den Link als aktiv');
+
+  const mailsBefore = mailbox().messages.length;
+  let { c: c6, p: p6 } = await fresh();
+  await p6.goto(inviteUrl);
+  await p6.waitForSelector('#step-form:not([hidden])');
+  ok(true, 'Registrierung: Link geöffnet, Formular erscheint (Öffnen verbraucht nicht)');
+  await p6.goto(inviteUrl);
+  await p6.waitForSelector('#step-form:not([hidden])');
+  await p6.fill('#username', 'joshua'); await p6.fill('#email', 'x@example.com');
+  await p6.fill('#password', PW2); await p6.fill('#password2', PW2); await p6.click('#step-form button[type=submit]');
+  await p6.waitForFunction(() => document.querySelector('#error').textContent.length > 0);
+  ok((await p6.textContent('#error')).includes('already taken'), 'Registrierung: vergebener Username gibt Formularfehler, Link bleibt gültig');
+  await p6.fill('#username', 'Anna'); await p6.fill('#email', 'Anna@Example.com');
+  await p6.click('#step-form button[type=submit]');
+  await p6.waitForSelector('#step-done:not([hidden])');
+  ok(true, 'Registrierung: Konto angelegt, Hinweis auf die Bestätigungsmail');
+  await p6.goto(inviteUrl);
+  await p6.waitForSelector('#state-invalid:not([hidden])');
+  ok(true, 'Registrierung: benutzter Link zeigt die neutrale Fehlerseite');
+
+  const newMails = await waitForMail(mailsBefore + 1);
+  const confirmMail = mailText(newMails[0].ID);
+  ok(confirmMail.To[0].Address === 'anna@example.com', 'Registrierung: Bestätigungsmail an die neue Adresse');
+  await p6.goto(confirmMail.Text.match(/https:\/\/auth\.test\/confirm\/[A-Za-z0-9_-]+/)[0]);
+  await p6.waitForSelector('#step-confirm:not([hidden])');
+  await p6.click('#confirm');
+  await p6.waitForSelector('#step-done:not([hidden])');
+  await loginPage(p6);
+  await p6.fill('#identifier', 'anna'); await p6.fill('#password', PW2); await p6.click('#step-password button[type=submit]');
+  await p6.waitForSelector('#signed-in:not([hidden])');
+  ok((await p6.textContent('#name')) === 'anna', 'Registrierung: nach der Bestätigung Anmeldung als anna');
+  await p6.goto(`${base}/account/links`);
+  await p6.waitForSelector('#cannot:not([hidden])');
+  ok(true, 'Links: anna hat kein Recht zum Erstellen, die Seite sagt es');
+  await c6.close();
+
+  await p3.goto(`${base}/admin#links`);
+  await p3.waitForSelector('#panel tbody tr');
+  ok((await p3.textContent('#panel tbody')).includes('anna') && (await p3.textContent('#panel tbody')).includes('used'), 'Dashboard: Reiter Links zeigt den benutzten Link mit anna');
+
+  // IP-Sperre: vier falsche Links, dann ist die Adresse gesperrt, ein Admin hebt es auf
+  let { c: c7, p: p7 } = await fresh();
+  for (let i = 1; i <= 4; i++) { await p7.goto(`${base}/invite/falsch${i}`); await p7.waitForSelector('#state-invalid:not([hidden])'); }
+  await p7.goto(`${base}/invite/falsch5`);
+  await p7.waitForSelector('#state-blocked:not([hidden])');
+  ok(true, 'IP-Sperre: nach vier falschen Links ist die Adresse für Links gesperrt');
+  await loginPage(p7);
+  ok(true, 'IP-Sperre: der Login ist nicht betroffen');
+  await p3.click('#tabs .tab:has-text("Settings")');
+  await p3.waitForSelector('#panel li button:has-text("Lift block")');
+  await p3.click('#panel li button:has-text("Lift block")');
+  await p3.waitForSelector('#panel :text("No address is blocked.")');
+  await p7.goto(`${base}/invite/falsch6`);
+  await p7.waitForSelector('#state-invalid:not([hidden])');
+  ok(true, 'IP-Sperre: Admin hebt sie im Dashboard auf');
+  await c7.close();
+
   await p3.goto(`${base}/`); await p3.waitForSelector('#signed-in:not([hidden])');
 
   // ---------- Abmelden ----------

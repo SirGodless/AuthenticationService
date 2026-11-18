@@ -19,3 +19,9 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - **V15 `totp_enrollments`:** Das vorbereitete, noch nicht bestätigte TOTP-Geheimnis beim Einrichten der 2FA (verschlüsselt, ein Eintrag je User, 15 Minuten gültig).
 - **V16 `force_password_reset_permission`:** Eingebautes Recht `admin.users.force_password_reset`.
 - Details in `permissions-and-roles.md` und `two-factor-settings.md`.
+
+## Hinzugekommen mit Etappe 5 (Einladungslinks)
+
+- **V17 `invite_links`:** Token nur als Hash, Ersteller, Rolle (ID ohne Fremdschlüssel, dazu Name), Rechte der Rolle und direkte Rechte als JSON zum Zeitpunkt der Erstellung, Status mit Grund, `expires_at`, wer ihn benutzt hat und was vergeben wurde. Wird nie gelöscht.
+- **V18 `settings`:** Schlüssel-Wert für Einstellungen aus dem Dashboard (Grenzen der Link-Gültigkeit).
+- **V19 `invite_ip_blocks`:** Zähler und Sperre pro IP (IPv6 als /64) für den Link-Endpunkt.

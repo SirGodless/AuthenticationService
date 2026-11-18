@@ -1,6 +1,6 @@
 # Offene Fragen an Joshua
 
-Stand: Etappe 4 (18.11.2026).
+Stand: Etappe 5 (18.11.2026).
 
 ## Erledigt (Antworten vom 18.11.2026)
 
@@ -22,6 +22,16 @@ Stand: Etappe 4 (18.11.2026).
 - **Migrationen:** Noch nichts deployt, deshalb nach Themen umgeschnitten (Schema vorher und nachher identisch geprüft).
 
 ## Zu entscheiden
+
+0. **Annahmen aus Etappe 5 zur Bestätigung** (Einzelheiten in `decisions/invite-links.md`):
+   - Nicht gesetztes `links.max_active` heißt: kein Platz.
+   - Der Link wird nur einmal angezeigt (gespeichert ist nur der Hash).
+   - Die 30 Tage sind eine feste Obergrenze der einstellbaren Werte, eingestellt wird in Stunden und Tagen im Reiter Settings.
+   - `admin.*` und die Rolle Admin lassen sich nie per Link vergeben.
+   - Admins mit `admin.links.view_all` dürfen fremde Links deaktivieren, Grenzen ändern und IP-Sperren aufheben braucht `admin.settings.manage`.
+   - Ein abgelehnter Link (Ersteller gebannt oder ohne Recht) wird nicht verändert und gilt wieder, wenn der Ersteller das Recht zurückbekommt.
+   - Die IP-Sperre löst beim vierten falschen Link aus und sperrt den ganzen Link-Endpunkt (auch gültige Links) einen Tag.
+   - Vorgriff: Die Seite `/account/links` gibt es schon jetzt, die Profilseite folgt mit Etappe 6.
 
 1. **Annahmen aus Etappe 4 zur Bestätigung** (Einzelheiten in `decisions/permissions-and-roles.md`, `admin-dashboard.md`, `two-factor-settings.md`):
    - Neues Recht `admin.users.force_password_reset` (in der Startliste fehlte eines dafür), in der Rolle Admin enthalten.

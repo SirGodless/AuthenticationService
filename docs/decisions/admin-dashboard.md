@@ -44,4 +44,6 @@ Alle schreibenden Aufrufe landen im Protokoll (Abschnitt 9), ohne Geheimnisse.
 
 ## Bewusst noch nicht im Dashboard
 
-Dienste und Clients (bis dahin `auth-admin register-service` und `grant-service`), alle Einladungslinks und die Einstellungen der Link-Grenzen (Etappe 5), Statusanzeige der Dienste (Etappe 6).
+Seit Etappe 5 gibt es zusätzlich die Reiter "Links" (alle Einladungslinks) und "Settings" (Grenzen der Link-Gültigkeit, gesperrte Adressen), siehe `invite-links.md`.
+
+Dienste und Clients (bis dahin `auth-admin register-service` und `grant-service`), Statusanzeige der Dienste (Etappe 6).

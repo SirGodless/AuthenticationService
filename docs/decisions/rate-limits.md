@@ -6,3 +6,7 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - **[A] Mail-Anfragen (Reset, Bestätigung erneut senden):** 3 pro Stunde **je E-Mail und je IP, getrennt gezählt** (nach der Vorgabe "je E-Mail und IP" ausgelegt als beide Grenzen einzeln). Auch unbekannte Adressen zählen, deshalb darf die Antwort bei Überschreitung ein ehrliches 429 sein, ohne etwas zu verraten.
 - Zähler stehen in der Datenbank (überleben Neustarts). Der Schlüssel ist ein Hash, es liegen keine E-Mail-Adressen oder IPs im Klartext in `throttle`. IPv6 wird auf das /64-Netz gekürzt.
 - **[A] Echte IP:** `X-Forwarded-For` zählt nur, wenn die Anfrage aus einem vertrauenswürdigen Bereich kommt, und dann der **letzte** Eintrag (Caddy hängt die echte Adresse an). Von anderen Absendern wird der Header ignoriert. Der Bereich ist `TRUSTED_PROXIES` (Standard im Compose-File `172.22.0.0/16`, das Subnetz von `caddy_net` laut Joshuas `docker network inspect`, 13.11.2026). Der Standard im Code ist nur lokal, damit ein vergessener Wert nie zu viel erlaubt. Rest-Schwäche: Jeder andere Container in `caddy_net` könnte den Header fälschen, das sind aber nur Joshuas eigene Container.
+
+## Einladungslinks (Etappe 5)
+
+Falsche Links (die es nie gab): mehr als 3 pro Stunde je IP (IPv6 pro /64) sperren den Link-Endpunkt einen Tag lang. Eigene Tabelle, damit ein Admin die Sperre aufheben kann. Siehe `invite-links.md`.

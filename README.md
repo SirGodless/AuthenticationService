@@ -4,7 +4,7 @@ Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
 steht in `CLAUDE.md`.
 
-**Stand:** Etappe 4. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Einladungslinks folgen mit Etappe 5.
+**Stand:** Etappe 5. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Registrierung nur über Einladungslinks (Erstellen, Gültigkeit, Platzlimit, Prüfung des Erstellers beim Einlösen, IP-Sperre bei falschen Links).
 
 ## Ordnerübersicht
 
@@ -155,6 +155,10 @@ Postfix versucht es weiter.
 ## Admin-Dashboard und 2FA-Seite
 
 Unter `https://auth.anfall.net/admin` verwaltest du Benutzer (suchen, bannen, 2FA zurücksetzen, Passwort-Reset erzwingen, Rollen und direkte Rechte), Rollen, Rechte und liest das Protokoll. Welche Reiter du siehst, hängt von deinen `admin.*`-Rechten ab. Admin-Funktionen verlangen eine eingerichtete 2FA, ohne sie zeigt die Seite einen Hinweis mit Link zu `https://auth.anfall.net/account/2fa`. Dort richtet jeder User seine 2FA ein, erzeugt neue Wiederherstellungscodes und (nur ohne Verwaltungsrechte) schaltet sie ab. Die Dienste (Clients) verwaltest du bis Etappe 6 weiter per Befehl (siehe unten).
+
+## Einladungslinks
+
+Konten gibt es nur über Einladungslinks. Ein User mit dem Recht `links.create` und einem Limit `links.max_active` erstellt sie auf `https://auth.anfall.net/account/links` und schickt sie weiter. Ein Link ist standardmäßig 7 Tage gültig (1 Stunde bis 30 Tage, mit Rolle oder Rechten höchstens 3 Tage), gilt einmal und wird erst beim Absenden des Formulars verbraucht. Er wird nur einmal angezeigt. Die Grenzen stellst du im Dashboard unter "Settings" ein, dort hebst du auch IP-Sperren auf (nach mehr als 3 falschen Links pro Stunde gilt eine Sperre von einem Tag). Das erste Konto mit diesen Rechten gibst du dir selbst im Dashboard unter "Users" (direkte Rechte `links.create` und `links.max_active`).
 
 ## Dienste anschließen (Vaultwarden, Audiobookshelf)
 

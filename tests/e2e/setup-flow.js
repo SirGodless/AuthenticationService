@@ -84,8 +84,8 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   totp.offset = 1; // der Code des aktuellen Fensters wurde beim Setup schon benutzt, das nächste gilt
   await p1.fill('#code', totp(secret)); await p1.click('#step-code button[type=submit]');
   await p1.waitForURL(`${base}/`);
-  await p1.waitForSelector('#signed-in:not([hidden])');
-  ok((await p1.textContent('#name')) === 'joshua', 'Login: angemeldet als joshua, Startseite zeigt den Namen');
+  await p1.waitForSelector('#sidebar .me span');
+  ok((await p1.textContent('#sidebar .me span')) === 'joshua', 'Login: angemeldet als joshua, Seitenmenü zeigt den Namen');
 
   // Cookie-Eigenschaften im echten Browser
   const cookies = await c1.cookies();
@@ -130,7 +130,7 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   ok(true, 'Reset: Link ist verbraucht (neutrale Fehlerseite)');
 
   // Alte Sitzung von oben ist beendet
-  await p1.goto(`${base}/`); await p1.waitForSelector('#signed-out:not([hidden])');
+  await p1.goto(`${base}/`); await p1.waitForSelector('#step-password:not([hidden])');
   ok(true, 'Reset: bestehende Sitzung wurde beendet');
 
   // ---------- Login mit neuem Passwort und Wiederherstellungscode ----------
@@ -143,7 +143,7 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p3.fill('#password', PW2); await p3.click('#step-password button[type=submit]');
   await p3.waitForSelector('#step-code:not([hidden])');
   await p3.fill('#code', recovery[0].toLowerCase()); await p3.click('#step-code button[type=submit]');
-  await p3.waitForSelector('#signed-in:not([hidden])');
+  await p3.waitForSelector('#sidebar .me span');
   ok(true, 'Login: Anmeldung mit Wiederherstellungscode (E-Mail als Kennung)');
   await p3.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/home.png' : undefined });
 
@@ -224,12 +224,18 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p5.fill('#code', recovery[3]); await p5.click('#step-code button[type=submit]');
   await p5.waitForURL(`${base}/admin`);
   await p5.waitForSelector('#tabs .tab');
-  ok(await p5.locator('#tabs .tab').count() === 6, 'Dashboard: Rücksprung nach dem Login, sechs Reiter für den Admin');
-  await p5.selectOption('#lang', 'de');
+  ok(await p5.locator('#tabs .tab').count() === 7, 'Dashboard: Rücksprung nach dem Login, sieben Reiter für den Admin');
+  // Sprache des Kontos auf der Profilseite umstellen: Seitenmenü und Dashboard folgen
+  await p5.goto(`${base}/account`);
+  await p5.waitForSelector('#profile-language');
+  await p5.selectOption('#profile-language', 'de');
+  await p5.waitForFunction(() => document.querySelector('#sidebar').textContent.includes('Dienste'));
+  await p5.goto(`${base}/admin`);
   await p5.waitForFunction(() => [...document.querySelectorAll('#tabs .tab')].some((t) => t.textContent === 'Benutzer'));
-  ok(true, 'Dashboard: Reiter wechseln mit der Sprache');
-  await p5.selectOption('#lang', 'en');
-  await p5.waitForFunction(() => [...document.querySelectorAll('#tabs .tab')].some((t) => t.textContent === 'Users'));
+  ok(true, 'Profil: Sprache des Kontos auf Deutsch, Dashboard folgt der Kontosprache');
+  await p5.goto(`${base}/account`);
+  await p5.selectOption('#profile-language', 'en');
+  await p5.waitForFunction(() => document.querySelector('#sidebar').textContent.includes('Services'));
   await c5.close();
 
   debugPage = p3;
@@ -273,6 +279,38 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p3.waitForSelector('#codes li');
   const fresh10 = await p3.locator('#codes li').allTextContents();
   ok(fresh10.length === 10 && !fresh10.includes(recovery[4]), '2FA-Seite: neue Wiederherstellungscodes erzeugt');
+  // ---------- Hub, Dienste und Akzentfarbe pro Dienst (Etappe 6) ----------
+  await p3.goto(`${base}/admin`);
+  await p3.click('#tabs .tab:has-text("Services")');
+  await p3.waitForSelector('#e2e-hex');
+  await p3.fill('#e2e-url', 'https://dienst.example/');
+  await p3.fill('#e2e-desc', 'Test-Dienst');
+  await p3.fill('#e2e-hex', '#e5a00d');
+  await p3.click('#panel .card-inner:has(#e2e-hex) button:has-text("Save")');
+  await p3.waitForFunction(() => document.querySelector('#notice').textContent.includes('Saved'));
+  ok(true, 'Dienste: Adresse, Beschreibung und Akzentfarbe im Dashboard gespeichert');
+  await p3.fill('#e2e-hex', 'rot'); await p3.click('#panel .card-inner:has(#e2e-hex) button:has-text("Save")');
+  await p3.waitForFunction(() => document.querySelector('#notice').textContent.includes('six hex digits'));
+  ok(true, 'Dienste: ungültige Farbe wird vom Backend abgelehnt');
+
+  await p3.goto(`${base}/`);
+  await p3.waitForSelector('#services tr');
+  ok(await p3.locator('#services tr').count() === 1 && (await p3.textContent('#services')).includes('E2E Dienst'), 'Hub: nur der Dienst mit Recht erscheint (der gesperrte nicht)');
+  const btn = p3.locator('#services a.btn.svc');
+  const colors = await btn.evaluate((el) => { const c = getComputedStyle(el); return { bg: c.backgroundColor, fg: c.color, href: el.href, target: el.target }; });
+  ok(colors.bg === 'rgb(229, 160, 13)' && colors.fg === 'rgb(13, 13, 13)', 'Hub: Knopf des Dienstes hat die eingestellte Farbe mit lesbarer Schrift (' + colors.bg + ', ' + colors.fg + ')');
+  ok(colors.href === 'https://dienst.example/' && colors.target === '_blank', 'Hub: Dienst öffnet in neuem Tab');
+  ok((await p3.textContent('#sidebar nav')).includes('E2E Dienst'), 'Hub: Seitenmenü listet den Dienst');
+  ok((await p3.textContent('#stat-services')) === '1', 'Hub: Kennzahlen');
+  await p3.click('[data-set-theme="light"]');
+  ok(await p3.getAttribute('html', 'data-theme') === 'light', 'Hell/Dunkel: Umschalten wirkt sofort');
+  await p3.reload(); await p3.waitForSelector('#services tr');
+  ok(await p3.getAttribute('html', 'data-theme') === 'light', 'Hell/Dunkel: die Wahl bleibt nach dem Neuladen');
+  const lightBtn = await p3.locator('#services a.btn.svc').evaluate((el) => getComputedStyle(el).backgroundColor);
+  ok(lightBtn === 'rgb(229, 160, 13)', 'Hub: Dienstfarbe gilt in beiden Darstellungen');
+  await p3.click('[data-set-theme="dark"]');
+  if (process.env.SHOT_DIR) await p3.screenshot({ path: process.env.SHOT_DIR + '/hub.png', fullPage: true });
+
   // ---------- Einladungslinks (Etappe 5) ----------
   // joshua bekommt über das Dashboard die Rechte zum Erstellen von Links (die Rolle Admin gibt sie nicht von selbst)
   await p3.goto(`${base}/admin`);
@@ -327,8 +365,8 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   await p6.waitForSelector('#step-done:not([hidden])');
   await loginPage(p6);
   await p6.fill('#identifier', 'anna'); await p6.fill('#password', PW2); await p6.click('#step-password button[type=submit]');
-  await p6.waitForSelector('#signed-in:not([hidden])');
-  ok((await p6.textContent('#name')) === 'anna', 'Registrierung: nach der Bestätigung Anmeldung als anna');
+  await p6.waitForSelector('#sidebar .me span');
+  ok((await p6.textContent('#sidebar .me span')) === 'anna', 'Registrierung: nach der Bestätigung Anmeldung als anna');
   await p6.goto(`${base}/account/links`);
   await p6.waitForSelector('#cannot:not([hidden])');
   ok(true, 'Links: anna hat kein Recht zum Erstellen, die Seite sagt es');
@@ -355,17 +393,18 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   ok(true, 'IP-Sperre: Admin hebt sie im Dashboard auf');
   await c7.close();
 
-  await p3.goto(`${base}/`); await p3.waitForSelector('#signed-in:not([hidden])');
+  await p3.goto(`${base}/`); await p3.waitForSelector('#sidebar .me span');
 
   // ---------- Abmelden ----------
-  await p3.click('#logout');
+  await p3.click('#sidebar .me button');
   await p3.waitForURL(`${base}/login`);
-  await p3.goto(`${base}/`); await p3.waitForSelector('#signed-out:not([hidden])');
-  ok(true, 'Abmelden: Sitzung beendet');
+  await p3.goto(`${base}/`); await p3.waitForSelector('#step-password:not([hidden])');
+  ok(true, 'Abmelden: Sitzung beendet, die Startseite führt zum Login');
 
   // ---------- Setup-Link ist tot, Header ----------
   // fetch im Browser: Playwrights eigener Request-Client kennt die Host-Zuordnung für auth.test nicht
-  await page.goto(`${base}/`);
+  await page.goto(`${base}/login`);
+  await page.waitForSelector('#step-password:not([hidden])');
   const get = (u) => page.evaluate(async (url) => { const r = await fetch(url); return { s: r.status, h: Object.fromEntries(r.headers) }; }, u);
   ok((await get(`${base}/api/setup/${token}`)).s === 404, 'Setup-Link nach dem Admin tot');
   const h = (await get(`${base}/login`)).h;
@@ -375,6 +414,6 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
 })().catch(async (e) => {
   console.log('FAIL: Ausnahme', e.message);
   console.log('Fehler im Browser:', JSON.stringify(globalThis.problems || []));
-  if (debugPage) console.log('Seite zur Zeit des Fehlers:', await debugPage.evaluate(() => document.body.innerText.slice(0, 800)).catch(() => '?'));
+  if (debugPage) console.log('Seite zur Zeit des Fehlers:', await debugPage.evaluate(() => document.body.innerText.slice(0, 2500)).catch(() => '?'));
   process.exit(1);
 });

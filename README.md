@@ -4,7 +4,7 @@ Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
 steht in `CLAUDE.md`.
 
-**Stand:** Etappe 5. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Registrierung nur über Einladungslinks (Erstellen, Gültigkeit, Platzlimit, Prüfung des Erstellers beim Einlösen, IP-Sperre bei falschen Links).
+**Stand:** Etappe 6 (Hub). Seitenmenü mit den Diensten des Users, Statusanzeige, Akzentfarbe pro Dienst, Profilseite, Hell/Dunkel. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Registrierung nur über Einladungslinks (Erstellen, Gültigkeit, Platzlimit, Prüfung des Erstellers beim Einlösen, IP-Sperre bei falschen Links).
 
 ## Ordnerübersicht
 
@@ -155,6 +155,10 @@ Postfix versucht es weiter.
 ## Admin-Dashboard und 2FA-Seite
 
 Unter `https://auth.anfall.net/admin` verwaltest du Benutzer (suchen, bannen, 2FA zurücksetzen, Passwort-Reset erzwingen, Rollen und direkte Rechte), Rollen, Rechte und liest das Protokoll. Welche Reiter du siehst, hängt von deinen `admin.*`-Rechten ab. Admin-Funktionen verlangen eine eingerichtete 2FA, ohne sie zeigt die Seite einen Hinweis mit Link zu `https://auth.anfall.net/account/2fa`. Dort richtet jeder User seine 2FA ein, erzeugt neue Wiederherstellungscodes und (nur ohne Verwaltungsrechte) schaltet sie ab. Die Dienste (Clients) verwaltest du bis Etappe 6 weiter per Befehl (siehe unten).
+
+## Hub und Dienste
+
+Nach dem Login zeigt `https://auth.anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du weiter mit `auth-admin register-service` an. Der Hub läuft vorerst auf `auth.anfall.net`, weil dort das Sitzungs-Cookie gilt. Ihn zusätzlich unter `anfall.net` zu erreichen (Cookie von `auth.anfall.net` plus CORS, siehe `docs/decisions/hub-ui-authentication.md`) ist für Etappe 7 vorgesehen.
 
 ## Einladungslinks
 

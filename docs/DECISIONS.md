@@ -1,6 +1,6 @@
 # Entscheidungen und Annahmen (Inhaltsverzeichnis)
 
-Stand: Etappe 5 (18.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
+Stand: Etappe 6 (18.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
 Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahme (wartet auf Bestätigung), **[U]** nicht oder nicht ganz verifiziert.
 
 ## Themen
@@ -15,6 +15,7 @@ Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahm
 | [permissions-and-roles.md](decisions/permissions-and-roles.md) | Rechte (boolesch und Zahl), Berechnung, Rollen als Live-Gruppen, wer was darf |
 | [admin-dashboard.md](decisions/admin-dashboard.md) | Admin-Schnittstelle und -Oberfläche, Pflicht-2FA, Passwort-Reset erzwingen |
 | [two-factor-settings.md](decisions/two-factor-settings.md) | 2FA einrichten, Codes erneuern, abschalten |
+| [hub-and-services.md](decisions/hub-and-services.md) | Gestaltung "Raster", Hub und Seitenmenü, Akzentfarbe pro Dienst, Statusanzeige, Profilseite |
 | [invite-links.md](decisions/invite-links.md) | Einladungslinks, Registrierung, Gültigkeit, Prüfung des Erstellers, IP-Sperre |
 | [oidc-provider.md](decisions/oidc-provider.md) | OIDC-Provider: Ablauf, Zugriffsentscheidung, Tokens, Clients, Signierschlüssel, Widerruf |
 | [login-and-sessions.md](decisions/login-and-sessions.md) | Anmeldung, Sitzungen, Cookies, CSRF |
@@ -43,8 +44,9 @@ Alle **[A]**-Punkte in den Themen-Dateien. Die größten:
 - OIDC (`oidc-provider.md`): ID-Token 30 Minuten (bestätigt), nur vertrauliche Clients, PKCE und keine Zustimmungsseite für alle, RS256 mit RSA 2048, `client_id` = Dienst-Key.
 - Etappe 4 (`permissions-and-roles.md`, `admin-dashboard.md`, `two-factor-settings.md`): neues Recht `admin.users.force_password_reset`, Zahlenwerte nur 0 oder größer, Schlüsselregeln für eigene Rechte (`admin.` und `service.` reserviert), Passwort und Code bei jeder 2FA-Änderung, Übersicht `/api/admin/overview` ohne 2FA-Pflicht, Admin-Seiten gleich-origin, Browser-Standarddialoge bis zum Design.
 - Etappe 5 (`invite-links.md`): nicht gesetztes `links.max_active` heißt kein Platz, Token nur einmal sichtbar, 30 Tage als feste Obergrenze der einstellbaren Werte, `admin.*` und die Rolle Admin nie per Link, Admins deaktivieren fremde Links mit `admin.links.view_all`, Aufheben der IP-Sperre und Grenzen mit `admin.settings.manage`, abgelehnter Link bleibt unverändert, Seite `/account/links` schon vor der Profilseite.
+- Etappe 6 (`hub-and-services.md`): Schriftfarbe auf Dienstknöpfen automatisch, offline markierte Dienste bleiben öffenbar, Status = Antwort 2xx oder 3xx in 5 Sekunden, Mailserver-Status als Erreichbarkeitsprüfung nur für Admins, Dienst-Anlage weiter per Befehl.
 
 ## Bewusst noch nicht gebaut
 
-- Hub-UI mit Sidebar, Statusanzeige und Profilseite (Etappe 6), Dienste und Clients im Dashboard (bis dahin `auth-admin`).
+- Dienste anlegen im Dashboard (bis dahin `auth-admin register-service`), Farbe von Diensten selbst melden lassen, Einbetten der Dienste, Backup (Etappe 7).
 - Backup-Container (Konzept steht, Umsetzung Etappe 7).

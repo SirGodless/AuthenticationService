@@ -2,7 +2,7 @@
 
 Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua entschieden. **[U]** nicht oder nicht ganz verifiziert.
 
-- 272 automatische Tests (Stand Etappe 5, 225 nach Etappe 4, 166 nach Etappe 3), darunter Rennen beim gleichzeitigen Einlösen eines Reset-Links, alle Limits, Sitzungslaufzeiten, Cookie-Eigenschaften, 2FA-Wiederverwendung, Neutralität der Antworten, Protokollschutz, Unicode. Der Mailversand läuft im Test über einen echten SMTP-Server (GreenMail).
+- 291 automatische Tests (Stand Etappe 6, 272 nach Etappe 5, 225 nach Etappe 4, 166 nach Etappe 3), darunter Rennen beim gleichzeitigen Einlösen eines Reset-Links, alle Limits, Sitzungslaufzeiten, Cookie-Eigenschaften, 2FA-Wiederverwendung, Neutralität der Antworten, Protokollschutz, Unicode. Der Mailversand läuft im Test über einen echten SMTP-Server (GreenMail).
 - Ende-zu-Ende im Browser (`tests/e2e/run.sh`, mit `tests/check-i18n.js` im UserHub-Repo für die Sprachdateien) mit Test-Caddy über HTTPS: Setup, Login mit 2FA, falscher Code, "Passwort vergessen" mit Mail aus Mailpit, Sperrlisten-Fehler, Reset, Wiederherstellungscode, Abmelden, Cookie-Flags im echten Browser.
 - Lizenzen: siehe `docs/THIRD-PARTY.md`.
 
@@ -31,3 +31,12 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - `InviteIpBlockTest` (8): vierter falscher Link sperrt, drei nicht, nur Link-Endpunkt und nur diese Adresse, abgelaufene, benutzte und deaktivierte Links zählen nicht, IPv6 pro /64, Absenden zählt wie Öffnen, Admin hebt auf.
 - `InviteLimitsAdminTest` (5): Standardwerte, geänderte Grenzen wirken, Obergrenze 30 Tage und Plausibilität, Recht und 2FA, Admin-Liste und Deaktivieren.
 - Browser-Test: Rechte im Dashboard vergeben, Link auf `/account/links` erstellen, Registrierung auf einer frischen Browsersitzung (Formularfehler, Konto, benutzter Link, Mail, Bestätigung, Login), IP-Sperre und Aufheben im Dashboard.
+
+## Etappe 6 (Hub und Dienste)
+
+- `ServiceAdminApiTest` (5): Farbe und Anzeige-Daten ändern (klein gespeichert), leere Farbe, ungültige Farben und Adressen werden abgelehnt (`red`, `#fff`, `#12345g`, `javascript:` ...), Recht und 2FA, Reiter in der Übersicht.
+- `ServiceHealthTest` (5): lokaler Testserver, aktiv/inaktiv/Weiterleitung/unbekannt, Dienst fällt aus und kommt zurück, Mailserver.
+- `HubApiTest` (7): nur Dienste mit Recht, live berechnet, Rolle Admin gibt keine Dienste, Status je Dienst, Mailstatus nur für Admins, Konto-Angaben.
+- `LanguageTest` (2).
+- Browser-Test erweitert: Farbe im Dashboard einstellen, im Hub die **berechnete** Knopffarbe prüfen (`rgb(229, 160, 13)` mit lesbarer Schrift), Seitenmenü, nur berechtigte Dienste, Hell/Dunkel bleibt nach dem Neuladen, Sprache des Kontos auf der Profilseite, Startseite ohne Anmeldung führt zum Login. Alle Seiten laufen ohne CSP-Verstöße.
+- `tests/check-i18n.js` kennt die neuen Themen. Nicht automatisch geprüft: das Aussehen. Es wurde mit Beispieldaten in beiden Darstellungen angesehen.

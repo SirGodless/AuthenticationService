@@ -20,13 +20,14 @@ Kennzeichnung: **[E]** von Joshua entschieden. **[A]** Annahme.
 | `login` | Anmelden (Passwort, zweiter Schritt), Abmelden, "Wer bin ich" |
 | `login/session` | Anmeldesitzungen und ihre Anbindung an Spring Security |
 | `oidc` | OIDC-Provider: Filterkette, Anmeldung für den Provider, Rechteprüfung, Token-Anpassung, Signierschlüssel, Widerruf |
-| `service` | Dienste (Vaultwarden, ...): anlegen, Recht, OIDC-Client |
+| `service` | Dienste (Vaultwarden, ...): anlegen, Recht, OIDC-Client, Anzeige-Eigenschaften und Akzentfarbe, Statusprüfung |
 | `permission` | Rechte: Definitionen, Werte, Berechnung der wirksamen Rechte, Verwaltung (Etappe 4) |
 | `role` | Rollen: anlegen, ändern, Mitglieder (Etappe 4) |
 | `useradmin` | Benutzerverwaltung im Dashboard: Liste, Details, 2FA zurücksetzen, Passwort-Reset erzwingen, Reiter-Übersicht (Etappe 4) |
 | `password` | Passwort-Regeln und Hashing, Passwort vergessen, Passwort ändern |
 | `password/check` | Die einzelnen Prüfungen (Länge, Sperrliste, Kontextwörter) |
 | `emailconfirmation` | E-Mail-Adresse bestätigen, Bestätigungsmail erneut senden |
+| `hub` | Daten für Startseite und Seitenmenü (Dienste des Users, Status, Konto) (Etappe 6) |
 | `invite` | Einladungslinks: erstellen, Regeln, Registrierung, Gültigkeit, IP-Sperre (Etappe 5) |
 | `settings` | Einstellungen aus dem Dashboard (Schlüssel-Wert) |
 | `emailtoken` | Einmal-Links per Mail (gemeinsam von Bestätigung und Reset genutzt) |
@@ -68,8 +69,9 @@ In Etappe 4 ist `permission` zu Rechten ausgebaut worden, Rollen und Benutzerver
 - `public/pages/`: eine HTML-Datei pro Seite. Der Dateiname entspricht der Adresse (`login.html` für `/login`).
 - `public/assets/js/pages/`: ein Skript pro Seite, gleicher Name wie die Seite. Es enthält nur, was diese Seite tut.
 - `public/assets/js/shared/`: was mehrere Seiten brauchen (`api.js` für Aufrufe an das Backend, `i18n.js` für Übersetzungen, `password-toggle.js` für "Passwort anzeigen", `dom.js` zum Bauen von Elementen ohne `innerHTML`, `qr.js` und `recovery-codes.js` für Setup- und 2FA-Seite).
-- `public/assets/js/admin/`: die Teile des Admin-Dashboards, ein Modul je Reiter (`users-list.js`, `users-detail.js`, `roles.js`, `permissions.js`, `links.js`, `audit.js`, `settings.js`) plus `ui.js` und `permission-value.js`. Das Seitenskript `pages/admin.js` hält nur den Rahmen mit den Reitern. Warum: Eine Datei für das ganze Dashboard wäre schnell mehr als tausend Zeilen.
-- `public/assets/css/`: `tokens.css` (Farben, der Teil, den ein Light Mode ersetzt), `layout.css`, `forms.css`, `setup.css` (nur Setup- und 2FA-Seite: QR-Code und Codes), `admin.css` (nur das Dashboard).
+- `public/assets/js/shared/shell.js` baut das Seitenmenü aller Seiten nach dem Login (holt `/api/hub`), `theme.js` schaltet Hell/Dunkel, `service-color.js` setzt die Farbe eines Dienstes. Seiten nach dem Login haben `<aside id="sidebar">` und rufen `initShell()`; Seiten davor haben die zentrierte Karte.
+- `public/assets/js/admin/`: die Teile des Admin-Dashboards, ein Modul je Reiter (`users-list.js`, `users-detail.js`, `roles.js`, `permissions.js`, `services.js`, `links.js`, `audit.js`, `settings.js`) plus `ui.js` und `permission-value.js`. Das Seitenskript `pages/admin.js` hält nur den Rahmen mit den Reitern. Warum: Eine Datei für das ganze Dashboard wäre schnell mehr als tausend Zeilen.
+- `public/assets/css/`: `tokens.css` (Farben, der Teil, den ein Light Mode ersetzt), `layout.css`, `forms.css`, `setup.css` (nur Setup- und 2FA-Seite: QR-Code und Codes), `admin.css` (Dashboard und Formulare nach dem Login). `tokens.css` enthält Dunkel und Hell als Variablen.
 - `public/assets/i18n/<sprache>/<thema>.json`: Texte nach Thema (`common`, `fields`, `errors`, `password`, `setup`, `login`, ...). Jede Seite nennt im `body` mit `data-i18n-files`, welche Themen sie lädt. Eine neue Sprache ist ein neuer Ordner mit denselben Dateinamen.
 - `public/assets/vendor/`: Fremdbibliotheken, mit Herkunft und Lizenz.
 - `nginx/`: Webserver-Konfiguration. `tests/`: Prüfungen (`check-i18n.js`).

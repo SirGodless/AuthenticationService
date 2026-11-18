@@ -1,6 +1,6 @@
 # Offene Fragen an Joshua
 
-Stand: Etappe 5 (18.11.2026).
+Stand: Etappe 6 (18.11.2026).
 
 ## Erledigt (Antworten vom 18.11.2026)
 
@@ -22,6 +22,15 @@ Stand: Etappe 5 (18.11.2026).
 - **Migrationen:** Noch nichts deployt, deshalb nach Themen umgeschnitten (Schema vorher und nachher identisch geprüft).
 
 ## Zu entscheiden
+
+00. **Hub unter `anfall.net`:** Der Hub läuft jetzt auf `auth.anfall.net` (gleiche Adresse wie die API, dort gilt das Sitzungs-Cookie). Unter `anfall.net` bräuchte er Variante 1 aus `hub-ui-authentication.md` (Cookie von `auth.anfall.net` plus CORS). Das ist noch nicht gebaut und gehört zu Etappe 7 (Header und CORS). **Frage:** Reicht dir `auth.anfall.net` als Adresse des Hubs, oder soll `anfall.net` unbedingt die Hub-Adresse sein (dann bauen wir die CORS-Variante)?
+
+00. **Annahmen aus Etappe 6 zur Bestätigung** (Einzelheiten in `decisions/hub-and-services.md`):
+   - Schriftfarbe auf Dienstknöpfen wird automatisch Schwarz oder Weiß, ein offline markierter Dienst bleibt öffenbar (umrandeter Knopf).
+   - Status: Antwort 2xx oder 3xx innerhalb von 5 Sekunden, Prüfung alle 60 Sekunden, Hub holt alle 30 Sekunden neu.
+   - Der Mailserver-Status ist eine Erreichbarkeitsprüfung (Verbindung zum Mailport), kein Zustelltest, und nur für Admins sichtbar.
+   - Dienste werden weiter per `auth-admin register-service` angelegt, das Dashboard ändert nur Anzeige, Adressen und Farbe.
+   - Später soll ein Dienst seine Farbe selbst melden können (noch nichts gebaut, nur vorbereitet). **Offen:** Soll die vom Dienst gemeldete Farbe die im Dashboard eingestellte ersetzen oder nur als Vorschlag gelten?
 
 0. **Annahmen aus Etappe 5 zur Bestätigung** (Einzelheiten in `decisions/invite-links.md`):
    - Nicht gesetztes `links.max_active` heißt: kein Platz.

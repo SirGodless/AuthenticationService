@@ -4,13 +4,13 @@ Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
 steht in `CLAUDE.md`.
 
-**Stand:** Etappe 3. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter und der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh mit Rechteprüfung am Dienst). Rollen, Rechte und Dashboard folgen mit Etappe 4.
+**Stand:** Etappe 4. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Einladungslinks folgen mit Etappe 5.
 
 ## Ordnerübersicht
 
 | Ordner / Datei | Was dort liegt |
 | :- | :- |
-| `src/main/java/net/anfall/auth/` | Der Backend-Code, ein Paket pro Fachthema (`account`, `login`, `password`, `twofactor`, `oidc`, `service`, `setup`, `audit`, `mail`, ...). Die Pakete sind in `docs/decisions/code-structure.md` erklärt. |
+| `src/main/java/net/anfall/auth/` | Der Backend-Code, ein Paket pro Fachthema (`account`, `login`, `password`, `twofactor`, `oidc`, `service`, `permission`, `role`, `useradmin`, `setup`, `audit`, `mail`, ...). Die Pakete sind in `docs/decisions/code-structure.md` erklärt. |
 | `src/main/resources/db/migration/` | Datenbank-Migrationen (Flyway), eine pro Änderung. Schon gelaufene werden nie geändert. |
 | `src/main/resources/mail/` | Mail-Texte, eine Datei pro Mail und Sprache (Englisch Standard, `_de` Deutsch). |
 | `src/main/resources/application.yml` | Einstellungen, die aus Umgebungsvariablen kommen. |
@@ -152,9 +152,13 @@ Postfix versucht es weiter.
   Mailserver verworfen. Wenn eine Mail nicht zugestellt werden kann, siehst du es nur im Log:
   `docker compose logs mail | grep status=bounced`.
 
+## Admin-Dashboard und 2FA-Seite
+
+Unter `https://auth.anfall.net/admin` verwaltest du Benutzer (suchen, bannen, 2FA zurücksetzen, Passwort-Reset erzwingen, Rollen und direkte Rechte), Rollen, Rechte und liest das Protokoll. Welche Reiter du siehst, hängt von deinen `admin.*`-Rechten ab. Admin-Funktionen verlangen eine eingerichtete 2FA, ohne sie zeigt die Seite einen Hinweis mit Link zu `https://auth.anfall.net/account/2fa`. Dort richtet jeder User seine 2FA ein, erzeugt neue Wiederherstellungscodes und (nur ohne Verwaltungsrechte) schaltet sie ab. Die Dienste (Clients) verwaltest du bis Etappe 6 weiter per Befehl (siehe unten).
+
 ## Dienste anschließen (Vaultwarden, Audiobookshelf)
 
-Ein Dienst ist ein OIDC-Client. Bis das Dashboard (Etappe 4) die Verwaltung übernimmt, legst du ihn mit einem Befehl an. Beispiel mit der Rücksprungadresse aus der Vaultwarden-Anleitung:
+Ein Dienst ist ein OIDC-Client. Bis das Dashboard auch Dienste verwaltet, legst du ihn mit einem Befehl an. Beispiel mit der Rücksprungadresse aus der Vaultwarden-Anleitung:
 
 ```bash
 docker compose exec auth-backend auth-admin register-service vault Vaultwarden https://vault.anfall.net/identity/connect/oidc-signin
@@ -166,7 +170,7 @@ Der Befehl zeigt **einmal** die Client-ID (`vault`) und das Client-Secret an. Tr
 docker compose exec auth-backend auth-admin grant-service joshua vault
 ```
 
-Ohne dieses Recht gibt der Provider keinen Code aus, der User sieht die Seite "Kein Zugang". Das Recht wird bei jedem Token-Refresh neu geprüft. Die genauen Einstellungen der Dienste (Scopes `openid profile email offline_access`, PKCE einschalten, Rücksprungadressen) stehen in deren Anleitungen. Das Zusammenspiel mit den echten Diensten testest du nach dem Deployment (in der Entwicklung nicht prüfbar).
+Ohne dieses Recht gibt der Provider keinen Code aus, der User sieht die Seite "Kein Zugang". Das Recht wird bei jedem Token-Refresh neu geprüft. Die genauen Einstellungen der Dienste (Scopes `openid profile email offline_access` (ohne `offline_access` gibt es keinen Refresh-Token), PKCE einschalten, Rücksprungadressen) stehen in deren Anleitungen. Das Zusammenspiel mit den echten Diensten testest du nach dem Deployment (in der Entwicklung nicht prüfbar).
 
 ## Betreiber-Befehle
 
@@ -177,8 +181,7 @@ Wiederherstellungscodes und beendet alle Sitzungen:
 docker compose exec auth-backend auth-admin reset-2fa joshua
 ```
 
-Danach reicht beim Login das Passwort. Die 2FA wieder einzurichten ist ab Etappe 4 möglich (API und Seite, siehe
-`docs/OPEN-QUESTIONS.md`).
+Danach reicht beim Login das Passwort. Die 2FA richtest du wieder auf `https://auth.anfall.net/account/2fa` ein.
 
 Neuen Signierschlüssel für die Tokens erzeugen (der alte bleibt zwei Tage zum Prüfen im JWKS):
 

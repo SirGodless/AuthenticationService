@@ -1,6 +1,6 @@
 # Entscheidungen und Annahmen (Inhaltsverzeichnis)
 
-Stand: Etappe 3 (13.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
+Stand: Etappe 4 (18.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
 Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahme (wartet auf Bestätigung), **[U]** nicht oder nicht ganz verifiziert.
 
 ## Themen
@@ -12,6 +12,9 @@ Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahm
 | [data-model.md](decisions/data-model.md) | Tabellen, Trennung personenbezogener Daten |
 | [first-admin-setup.md](decisions/first-admin-setup.md) | Setup-Link, erster Admin, 2FA, Wiederherstellungscodes |
 | [hub-ui-authentication.md](decisions/hub-ui-authentication.md) | Vorschlag: Wie sich die Hub-UI an der API anmeldet (Frage vor Etappe 3) |
+| [permissions-and-roles.md](decisions/permissions-and-roles.md) | Rechte (boolesch und Zahl), Berechnung, Rollen als Live-Gruppen, wer was darf |
+| [admin-dashboard.md](decisions/admin-dashboard.md) | Admin-Schnittstelle und -Oberfläche, Pflicht-2FA, Passwort-Reset erzwingen |
+| [two-factor-settings.md](decisions/two-factor-settings.md) | 2FA einrichten, Codes erneuern, abschalten |
 | [oidc-provider.md](decisions/oidc-provider.md) | OIDC-Provider: Ablauf, Zugriffsentscheidung, Tokens, Clients, Signierschlüssel, Widerruf |
 | [login-and-sessions.md](decisions/login-and-sessions.md) | Anmeldung, Sitzungen, Cookies, CSRF |
 | [rate-limits.md](decisions/rate-limits.md) | Limits, echte Besucher-IP |
@@ -36,12 +39,10 @@ Alle **[A]**-Punkte in den Themen-Dateien. Die größten:
 - Was "Ableitung" bei Kontextwörtern heißt (`passwords.md`).
 - Bounces werden verworfen (`mail.md`, **[E]** wegen fehlendem Posteingang).
 - Zeitzone "0 Uhr" für das Backup (`containers-and-deployment.md`).
-- OIDC (`oidc-provider.md`): Refresh-Token auch ohne `offline_access`, ID-Token 30 Minuten, nur vertrauliche Clients, PKCE und keine Zustimmungsseite für alle, RS256 mit RSA 2048, `client_id` = Dienst-Key.
-- Die Rechte-Tabellen aus Etappe 3 sind eine Vorstufe, Etappe 4 baut sie aus.
+- OIDC (`oidc-provider.md`): ID-Token 30 Minuten (bestätigt), nur vertrauliche Clients, PKCE und keine Zustimmungsseite für alle, RS256 mit RSA 2048, `client_id` = Dienst-Key.
+- Etappe 4 (`permissions-and-roles.md`, `admin-dashboard.md`, `two-factor-settings.md`): neues Recht `admin.users.force_password_reset`, Zahlenwerte nur 0 oder größer, Schlüsselregeln für eigene Rechte (`admin.` und `service.` reserviert), Passwort und Code bei jeder 2FA-Änderung, Übersicht `/api/admin/overview` ohne 2FA-Pflicht, Admin-Seiten gleich-origin, Browser-Standarddialoge bis zum Design.
 
 ## Bewusst noch nicht gebaut
 
-- 2FA einrichten, neu erzeugen und abschalten für normale User: kommt mit Etappe 4, weil dort die Pflicht-2FA für Admin-Funktionen greift (siehe `OPEN-QUESTIONS.md`).
-- Registrierung (Etappe 5), Rechte und Rollen mit Dashboard (Etappe 4), Hub-UI (Etappe 6).
+- Registrierung und Einladungslinks (Etappe 5), Hub-UI mit Sidebar, Statusanzeige und Profilseite (Etappe 6), Dienste und Clients im Dashboard (bis dahin `auth-admin`).
 - Backup-Container (Konzept steht, Umsetzung Etappe 7).
-- Passwort-Reset durch Admins erzwingen (Etappe 4, bestätigt).

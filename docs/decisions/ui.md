@@ -9,5 +9,6 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - Styling ist bewusst schlicht, CSS-Variablen, Dark Mode zuerst. Der Stil kommt in Etappe 6.
 
 - **Etappe 3:** Neue Seite `/access-denied` ("Kein Zugang", Dienstname aus dem Parameter `service`, nur als Text eingesetzt). Die Login-Seite folgt dem Parameter `continue` nur für Adressen, die mit `/oauth2/authorize?` beginnen (`js/shared/redirect.js`), damit ein Dienst den Nutzer nach dem Login dorthin zurückbringt, ohne dass ein offener Redirect entsteht.
+- **Etappe 4:** Neue Seiten `/admin` (Dashboard mit Reitern) und `/account/2fa` (2FA einrichten, Codes erneuern, abschalten). `continue` nach dem Login gilt jetzt auch für genau diese beiden Adressen (feste Liste, kein offener Redirect). Neue Hilfe `shared/dom.js` baut Elemente ohne `innerHTML`, damit Daten aus der API nie als HTML ins Dokument gelangen (die strenge CSP erlaubt ohnehin keine Inline-Skripte). Aufbau und Verhalten: `admin-dashboard.md`.
 - **Aufbau von `public/` (13.11.2026):** Siehe `docs/decisions/code-structure.md`.
 - **[A] Passwortfelder (NIST SP 800-63B-4):** Alle Passwortfelder haben "Passwort anzeigen", Einfügen ist nicht gesperrt, Passwortmanager funktionieren (`autocomplete`-Angaben), unter neuen Passwörtern steht eine Hilfestellung. Das Backend liefert bei Ablehnung einen Grund, die UI zeigt ihn an.

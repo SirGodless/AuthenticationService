@@ -20,6 +20,7 @@ function totp(b32) {
 }
 const ok = (c, m) => { if (!c) { console.log('FAIL:', m); process.exitCode = 1; } else console.log('ok:', m); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let debugPage; // bei einem Fehler wird der sichtbare Text dieser Seite ausgegeben
 const PW1 = 'correct horse battery staple';
 const PW2 = 'a brand new passphrase 2026';
 
@@ -37,7 +38,7 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   const browser = await chromium.launch({ args: ['--no-proxy-server', `--host-resolver-rules=MAP auth.test ${ip}`] });
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 900, height: 1100 } });
   const page = await ctx.newPage();
-  const problems = [];
+  const problems = []; globalThis.problems = problems;
   page.on('console', m => { if (['error', 'warning'].includes(m.type()) && !m.text().startsWith('Failed to load resource')) problems.push(m.text()); });
   page.on('pageerror', e => problems.push('pageerror ' + e.message));
 
@@ -212,6 +213,68 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   ok(!p4.url().includes('code='), 'OIDC: kein Code in der Adresse');
   await c4.close();
 
+  // ---------- Admin-Dashboard und 2FA-Seite (p3 ist als joshua mit der Rolle Admin angemeldet) ----------
+  // Ohne Anmeldung leitet /admin zum Login um und kehrt danach zurück
+  let { c: c5, p: p5 } = await fresh();
+  await p5.goto(`${base}/admin`);
+  await p5.waitForSelector('#step-password:not([hidden])');
+  ok(p5.url().includes('/login?continue=%2Fadmin'), 'Dashboard: ohne Anmeldung Weiterleitung zum Login mit Rücksprung');
+  await p5.fill('#identifier', 'joshua'); await p5.fill('#password', PW2); await p5.click('#step-password button[type=submit]');
+  await p5.waitForSelector('#step-code:not([hidden])');
+  await p5.fill('#code', recovery[3]); await p5.click('#step-code button[type=submit]');
+  await p5.waitForURL(`${base}/admin`);
+  await p5.waitForSelector('#tabs .tab');
+  ok(await p5.locator('#tabs .tab').count() === 4, 'Dashboard: Rücksprung nach dem Login, vier Reiter für den Admin');
+  await p5.selectOption('#lang', 'de');
+  await p5.waitForFunction(() => [...document.querySelectorAll('#tabs .tab')].some((t) => t.textContent === 'Benutzer'));
+  ok(true, 'Dashboard: Reiter wechseln mit der Sprache');
+  await p5.selectOption('#lang', 'en');
+  await p5.waitForFunction(() => [...document.querySelectorAll('#tabs .tab')].some((t) => t.textContent === 'Users'));
+  await c5.close();
+
+  debugPage = p3;
+  await p3.goto(`${base}/admin`);
+  await p3.waitForSelector('#panel table');
+  ok((await p3.textContent('#panel tbody')).includes('joshua'), 'Dashboard: Benutzerliste zeigt joshua');
+  await p3.click('#panel tbody button.link');
+  await p3.waitForSelector('#panel h3');
+  const detail = await p3.textContent('#panel');
+  ok(detail.includes('Admin') && detail.includes('admin.users.view'), 'Dashboard: Detailansicht mit Rolle Admin und wirksamen Rechten');
+
+  await p3.click('#tabs .tab:has-text("Roles")');
+  await p3.waitForSelector('#panel .card-inner');
+  await p3.fill('#panel form input[type=text]', 'Helpers'); await p3.click('#panel form button[type=submit]');
+  await p3.waitForSelector('#panel .card-inner:has-text("Helpers")');
+  ok(true, 'Dashboard: Rolle angelegt');
+  await p3.selectOption('#panel .card-inner:has-text("Helpers") select', 'links.create');
+  await p3.click('#panel .card-inner:has-text("Helpers") button:has-text("Set right")');
+  await p3.waitForSelector('#panel .card-inner:has-text("Helpers") li:has-text("links.create")');
+  ok(true, 'Dashboard: Recht in der Rolle gesetzt');
+
+  await p3.click('#tabs .tab:has-text("Rights")');
+  await p3.waitForSelector('#perm-key');
+  ok((await p3.textContent('#panel .info')).includes('sign-in requirement'), 'Dashboard: Hinweis, dass ein Recht nur als Anmeldevoraussetzung wirkt');
+  await p3.fill('#perm-key', 'media.upload'); await p3.fill('#perm-description', 'Upload'); await p3.click('#panel form button[type=submit]');
+  await p3.waitForSelector('#panel tbody tr:has-text("media.upload")');
+  ok(true, 'Dashboard: eigenes Recht angelegt');
+  await p3.fill('#perm-key', 'admin.mine'); await p3.click('#panel form button[type=submit]');
+  await p3.waitForFunction(() => document.querySelector('#notice').textContent.includes('reserved'));
+  ok(true, 'Dashboard: reservierter Schlüssel abgelehnt, Fehlertext sichtbar');
+
+  await p3.click('#tabs .tab:has-text("Log")');
+  await p3.waitForSelector('#panel tbody tr');
+  ok((await p3.textContent('#panel tbody')).includes('role.created'), 'Dashboard: Protokoll zeigt die neuen Einträge');
+
+  await p3.goto(`${base}/account/2fa`);
+  await p3.waitForSelector('#status:not(:empty)');
+  ok((await p3.textContent('#status')).includes('is on'), '2FA-Seite: Status eingeschaltet');
+  ok(!(await p3.isHidden('#mandatory')) && await p3.isHidden('#disable-form'), '2FA-Seite: Admin sieht den Pflicht-Hinweis, Abschalten fehlt');
+  await p3.fill('#regen-password', PW2); await p3.fill('#regen-code', recovery[2]); await p3.click('#regen-form button[type=submit]');
+  await p3.waitForSelector('#codes li');
+  const fresh10 = await p3.locator('#codes li').allTextContents();
+  ok(fresh10.length === 10 && !fresh10.includes(recovery[4]), '2FA-Seite: neue Wiederherstellungscodes erzeugt');
+  await p3.goto(`${base}/`); await p3.waitForSelector('#signed-in:not([hidden])');
+
   // ---------- Abmelden ----------
   await p3.click('#logout');
   await p3.waitForURL(`${base}/login`);
@@ -227,4 +290,9 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   ok((h['content-security-policy'] || '').includes("frame-ancestors 'none'") && h['cache-control'] === 'no-store', 'Login-Seite: frame-ancestors none, no-store');
   ok(problems.length === 0, 'keine Konsolenfehler / CSP-Verstöße ' + JSON.stringify(problems));
   await browser.close();
-})().catch(e => { console.log('FAIL: Ausnahme', e.message); process.exit(1); });
+})().catch(async (e) => {
+  console.log('FAIL: Ausnahme', e.message);
+  console.log('Fehler im Browser:', JSON.stringify(globalThis.problems || []));
+  if (debugPage) console.log('Seite zur Zeit des Fehlers:', await debugPage.evaluate(() => document.body.innerText.slice(0, 800)).catch(() => '?'));
+  process.exit(1);
+});

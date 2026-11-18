@@ -21,23 +21,25 @@ Kennzeichnung: **[E]** von Joshua entschieden. **[A]** Annahme.
 | `login/session` | Anmeldesitzungen und ihre Anbindung an Spring Security |
 | `oidc` | OIDC-Provider: Filterkette, Anmeldung für den Provider, Rechteprüfung, Token-Anpassung, Signierschlüssel, Widerruf |
 | `service` | Dienste (Vaultwarden, ...): anlegen, Recht, OIDC-Client |
-| `permission` | Berechtigungen eines Users (wird mit Etappe 4 ausgebaut) |
+| `permission` | Rechte: Definitionen, Werte, Berechnung der wirksamen Rechte, Verwaltung (Etappe 4) |
+| `role` | Rollen: anlegen, ändern, Mitglieder (Etappe 4) |
+| `useradmin` | Benutzerverwaltung im Dashboard: Liste, Details, 2FA zurücksetzen, Passwort-Reset erzwingen, Reiter-Übersicht (Etappe 4) |
 | `password` | Passwort-Regeln und Hashing, Passwort vergessen, Passwort ändern |
 | `password/check` | Die einzelnen Prüfungen (Länge, Sperrliste, Kontextwörter) |
 | `emailconfirmation` | E-Mail-Adresse bestätigen, Bestätigungsmail erneut senden |
 | `emailtoken` | Einmal-Links per Mail (gemeinsam von Bestätigung und Reset genutzt) |
-| `twofactor` | TOTP und Wiederherstellungscodes |
+| `twofactor` | TOTP, Wiederherstellungscodes, 2FA selbst einrichten, erneuern, abschalten |
 | `setup` | Setup-Link und erster Admin |
 | `admincli` | Befehle für den Betreiber im Container, eine Klasse pro Befehl |
 | `audit` | Protokoll |
 | `ratelimit` | Zähler und Sperren |
 | `mail` | Mailversand und Mail-Texte |
-| `security` | Zugriffsregeln und CSRF-Schutz |
+| `security` | Zugriffsregeln, CSRF-Schutz und die Prüfung für Admin-Funktionen (`AdminAccessGuard`) |
 | `crypto` | Zufall, Hashes, Verschlüsselung (fachthemenübergreifend) |
 | `config` | Einstellungen und Startprüfungen |
 | `web` | Gemeinsame Teile der API (Fehler, Antworten, Client-IP) |
 
-Spätere Etappen bekommen ihre eigenen Pakete: `invite` (Einladungslinks). `permission` wird mit Etappe 4 zu Rechten und Rollen ausgebaut.
+Spätere Etappen bekommen ihre eigenen Pakete: `invite` (Einladungslinks, Etappe 5). In Etappe 4 ist `permission` zu Rechten ausgebaut worden, Rollen und Benutzerverwaltung haben eigene Pakete (`role`, `useradmin`), weil sie je eine Seite des Dashboards bedienen und das Rechtepaket sonst alles zugleich wäre. Jede Admin-Schnittstelle (`*AdminController`) liegt beim Fachthema, nicht in einem gemeinsamen Admin-Paket.
 
 **Aufteilung großer Klassen.** Vorher waren `AuthController` (8 Schnittstellen), `LoginService` (Passwort, 2FA, TOTP-Prüfung, Abmelden), `SetupService` (Link und Admin) und `MaintenanceJobs` (4 Aufräumarbeiten) Sammelklassen. Jetzt hat jede Klasse eine Aufgabe, im Namen erkennbar:
 
@@ -63,8 +65,9 @@ Spätere Etappen bekommen ihre eigenen Pakete: `invite` (Einladungslinks). `perm
 
 - `public/pages/`: eine HTML-Datei pro Seite. Der Dateiname entspricht der Adresse (`login.html` für `/login`).
 - `public/assets/js/pages/`: ein Skript pro Seite, gleicher Name wie die Seite. Es enthält nur, was diese Seite tut.
-- `public/assets/js/shared/`: was mehrere Seiten brauchen (`api.js` für Aufrufe an das Backend, `i18n.js` für Übersetzungen, `password-toggle.js` für "Passwort anzeigen").
-- `public/assets/css/`: `tokens.css` (Farben, der Teil, den ein Light Mode ersetzt), `layout.css`, `forms.css`, `setup.css` (nur die Setup-Seite).
+- `public/assets/js/shared/`: was mehrere Seiten brauchen (`api.js` für Aufrufe an das Backend, `i18n.js` für Übersetzungen, `password-toggle.js` für "Passwort anzeigen", `dom.js` zum Bauen von Elementen ohne `innerHTML`, `qr.js` und `recovery-codes.js` für Setup- und 2FA-Seite).
+- `public/assets/js/admin/`: die Teile des Admin-Dashboards, ein Modul je Reiter (`users-list.js`, `users-detail.js`, `roles.js`, `permissions.js`, `audit.js`) plus `ui.js` und `permission-value.js`. Das Seitenskript `pages/admin.js` hält nur den Rahmen mit den Reitern. Warum: Eine Datei für das ganze Dashboard wäre schnell mehr als tausend Zeilen.
+- `public/assets/css/`: `tokens.css` (Farben, der Teil, den ein Light Mode ersetzt), `layout.css`, `forms.css`, `setup.css` (nur Setup- und 2FA-Seite: QR-Code und Codes), `admin.css` (nur das Dashboard).
 - `public/assets/i18n/<sprache>/<thema>.json`: Texte nach Thema (`common`, `fields`, `errors`, `password`, `setup`, `login`, ...). Jede Seite nennt im `body` mit `data-i18n-files`, welche Themen sie lädt. Eine neue Sprache ist ein neuer Ordner mit denselben Dateinamen.
 - `public/assets/vendor/`: Fremdbibliotheken, mit Herkunft und Lizenz.
 - `nginx/`: Webserver-Konfiguration. `tests/`: Prüfungen (`check-i18n.js`).

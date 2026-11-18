@@ -11,4 +11,11 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - **`oauth2_registered_client`, `oauth2_authorization`** (V10): Tabellen von Spring Authorization Server für Clients und Autorisierungen mit Tokens, nach deren mitgelieferten Schema-Dateien für PostgreSQL angepasst (`blob` wird `text`, `timestamp` wird `timestamptz`). `principal_name` ist die User-UUID und hat einen Index, damit sich alle Tokens eines Users schnell widerrufen lassen. Die Zustimmungstabelle fehlt bewusst.
 - **`oidc_signing_keys`** (V11): Signierschlüssel. Höchstens ein aktiver (Teilindex), private Teile verschlüsselt und nur beim aktiven Schlüssel vorhanden.
 - **`services`** (V12): Dienste mit Anzeigename, `open_mode` (`new_tab` oder `embedded`, **[E]** Abschnitt 6, zuerst nur `new_tab`), Health-URL und dem Recht, das den Zugang regelt. Verknüpft mit dem Client über `client_id`.
-- **`role_permissions`, `user_permissions`** (V13): Welche Rechte eine Rolle enthält und welche ein User direkt bekommt. Vorerst nur boolesche Rechte, Etappe 4 ergänzt Zahlenrechte in einer neuen Migration.
+- **`role_permissions`, `user_permissions`** (V13): Welche Rechte eine Rolle enthält und welche ein User direkt bekommt. Mit V14 (Etappe 4) kommen Zahlenwerte dazu.
+
+## Hinzugekommen mit Etappe 4 (Rechte, Rollen, 2FA)
+
+- **V14 `typed_permission_values`:** `role_permissions` und `user_permissions` bekommen `number_value` (bigint, 0 oder größer) und `unlimited`. Prüfregel: nie beides zugleich. Boolesche Rechte brauchen keinen Wert.
+- **V15 `totp_enrollments`:** Das vorbereitete, noch nicht bestätigte TOTP-Geheimnis beim Einrichten der 2FA (verschlüsselt, ein Eintrag je User, 15 Minuten gültig).
+- **V16 `force_password_reset_permission`:** Eingebautes Recht `admin.users.force_password_reset`.
+- Details in `permissions-and-roles.md` und `two-factor-settings.md`.

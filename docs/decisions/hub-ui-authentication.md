@@ -49,3 +49,5 @@ Das ist durch OIDC vorgegeben, keine Geschmacksfrage. Die Dienste (Vaultwarden, 
 **Variante 1.** Sie ist die einfachste, hat nur eine Sitzung, hält Tokens aus dem Browser-JavaScript heraus und passt zur Vorgabe. Die Bedingung "gleiche Site" ist bei `anfall.net` und `auth.anfall.net` erfüllt. Sollte der Hub später auf eine andere Domain ziehen, lässt sich Variante 3 nachrüsten, ohne den Provider (Etappe 3) zu ändern.
 
 Der OIDC-Provider (Etappe 3) ist von dieser Wahl nicht betroffen, nur die Hub-Schnittstelle (Etappe 4 bis 6).
+
+**Entscheidung (Joshua, 18.11.2026):** Für den Aufbau reicht `auth.anfall.net` als Adresse des Hubs. Seiten und API haben dann dieselbe Adresse, das Cookie ist host-only, **CORS wird nicht gebraucht und ist nirgends freigegeben** (getestet). `anfall.net` und `www.anfall.net` leiten auf `auth.anfall.net` um. Die Variante mit dem Hub unter `anfall.net` (Cookie plus CORS) bleibt eine Option für später.

@@ -2,7 +2,7 @@
 
 Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua entschieden. **[U]** nicht oder nicht ganz verifiziert.
 
-- 291 automatische Tests (Stand Etappe 6, 272 nach Etappe 5, 225 nach Etappe 4, 166 nach Etappe 3), darunter Rennen beim gleichzeitigen Einlösen eines Reset-Links, alle Limits, Sitzungslaufzeiten, Cookie-Eigenschaften, 2FA-Wiederverwendung, Neutralität der Antworten, Protokollschutz, Unicode. Der Mailversand läuft im Test über einen echten SMTP-Server (GreenMail).
+- 307 automatische Tests (Stand Etappe 7, 291 nach Etappe 6, 272 nach Etappe 5, 225 nach Etappe 4, 166 nach Etappe 3), darunter Rennen beim gleichzeitigen Einlösen eines Reset-Links, alle Limits, Sitzungslaufzeiten, Cookie-Eigenschaften, 2FA-Wiederverwendung, Neutralität der Antworten, Protokollschutz, Unicode. Der Mailversand läuft im Test über einen echten SMTP-Server (GreenMail).
 - Ende-zu-Ende im Browser (`tests/e2e/run.sh`, mit `tests/check-i18n.js` im UserHub-Repo für die Sprachdateien) mit Test-Caddy über HTTPS: Setup, Login mit 2FA, falscher Code, "Passwort vergessen" mit Mail aus Mailpit, Sperrlisten-Fehler, Reset, Wiederherstellungscode, Abmelden, Cookie-Flags im echten Browser.
 - Lizenzen: siehe `docs/THIRD-PARTY.md`.
 
@@ -40,3 +40,12 @@ Kennzeichnung: **[A]** Annahme, wartet auf Bestätigung. **[E]** von Joshua ents
 - `LanguageTest` (2).
 - Browser-Test erweitert: Farbe im Dashboard einstellen, im Hub die **berechnete** Knopffarbe prüfen (`rgb(229, 160, 13)` mit lesbarer Schrift), Seitenmenü, nur berechtigte Dienste, Hell/Dunkel bleibt nach dem Neuladen, Sprache des Kontos auf der Profilseite, Startseite ohne Anmeldung führt zum Login. Alle Seiten laufen ohne CSP-Verstöße.
 - `tests/check-i18n.js` kennt die neuen Themen. Nicht automatisch geprüft: das Aussehen. Es wurde mit Beispieldaten in beiden Darstellungen angesehen.
+
+## Etappe 7 (Absicherung und Auslieferung)
+
+- `SingleSignOnTest` (4): Dienst direkt aufgerufen, einmal anmelden und ein zweiter Dienst gibt sofort einen Code, Abmelden beendet es, das Recht wird je Dienst geprüft, ein gebannter User bekommt von keinem Dienst einen Code.
+- `ResponseHeadersTest` (4): `nosniff`, `X-Frame-Options`, `no-store`, **kein CORS** (normale Anfrage und Preflight, 6 Pfade), Cookie host-only ohne Domain.
+- `AccountSettingsTest` und `HubApiTest` erweitert: Darstellung als Kontoeinstellung, gemeldete Farbe überschreibt die Hub-Farbe, außer sie ist festgehalten.
+- **`backup/test.sh`:** Zeitplan, Aufbewahrung (400 nachgespielte Tage: 7 tägliche, 12 monatliche, der älteste tägliche von vor 6 Tagen), Dateirechte, Schlüsseldatei und Wiederherstellung mit einer Wegwerf-Datenbank.
+- **Browser-Test erweitert** (103 Prüfungen): Der Test-Caddy wird aus `deploy/Caddyfile.snippet` gebaut (HSTS kommt von dort). Header aller 11 Seitenarten, API ohne CORS, kein Umschalter für die Darstellung auf den Seiten, Einstellung im Profil wirkt und bleibt, Farbe vom Dienst überschreibt, Kästchen hält die Hub-Farbe, Backup-Container im echten Stack (Dump, Schlüssel, DKIM, gesund).
+- Nicht prüfbar in der Sitzung: echte Dienste, echter Mailversand, echte Domains und Zertifikate, Zustellung an große Mail-Anbieter, die Schwachstellenprüfung der Abhängigkeiten (Datenbanken aus der Umgebung nicht erreichbar).

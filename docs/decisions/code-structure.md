@@ -58,6 +58,8 @@ In Etappe 4 ist `permission` zu Rechten ausgebaut worden, Rollen und Benutzerver
 
 **Migrationen.** Eine Migration pro Fachthema und Änderung, mit sprechendem Namen: `V1__accounts`, `V2__two_factor`, `V3__permissions_and_roles`, `V4__setup_tokens`, `V5__audit_log`, `V6__login_sessions`, `V7__email_tokens`, `V8__rate_limit_throttle`, `V9__audit_log_append_only`. **[E]** Joshua hat bestätigt (13.11.2026), dass noch keine Datenbank existiert. Deshalb habe ich die ersten beiden Sammel-Migrationen vor dem ersten Deployment nach Themen umgeschnitten. Geprüft: Das Schema und die Daten beider Fassungen sind identisch (Vergleich per `pg_dump`). **Ab dem ersten Deployment ist jede Migration unveränderlich**, weil Flyway die Prüfsumme prüft und bei einer Änderung den Start verweigert. Neue Änderungen kommen immer als neue Datei (z. B. `V10__invite_links.sql`).
 
+**Auslieferung (Etappe 7).** `backup/` (Container für Backups: Skripte, Dockerfile, Test, ein Ordner für ein Thema) und `deploy/` (Block für deinen Caddy). Beide liegen im Hauptordner neben `scripts/`, weil sie je ein eigenes Thema sind.
+
 **Docker-Dateien.** `Dockerfile` und `docker-compose.yml` liegen im Hauptordner, weil das die Konvention ist und `docker compose up` sie dort sucht. Hilfsdateien dazu stehen thematisch sortiert: `scripts/` (Skripte, die in den Image oder auf dem Server laufen), `tests/e2e/` (Browser-Test samt Test-Caddy).
 
 **Doku.** `README.md` (Überblick, Start, Tests, Mailserver-Einrichtung), `docs/DEPLOY.md` (Deployment), `docs/OPEN-QUESTIONS.md`, `docs/NIST-800-63B-4.md`, `docs/THIRD-PARTY.md`, und die Entscheidungen nach Thema in `docs/decisions/` (diese Datei gehört dazu). `docs/DECISIONS.md` ist nur noch das Inhaltsverzeichnis.

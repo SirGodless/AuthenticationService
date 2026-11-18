@@ -101,6 +101,39 @@ class HubApiTest extends AdminTestBase {
         assertThat(hub(admin.browser()).get("account").get("twoFactorEnabled").asBoolean()).isTrue();
     }
 
+    private String hubColor(Browser b) throws Exception {
+        JsonNode c = hub(b).get("services").get(0).get("accentColor");
+        return c.isNull() ? null : c.asString();
+    }
+
+    @Test
+    void aColorReportedByTheServiceOverridesTheHubColor() throws Exception {
+        service("vault", "Vaultwarden", "#2f81f7");
+        Session anna = loggedInWithPermissions("anna", false, "service.vault");
+        assertThat(hubColor(anna.browser())).isEqualTo("#2f81f7");
+        jdbc.sql("UPDATE services SET reported_accent_color = '#22aa55' WHERE key = 'vault'").update();
+        assertThat(hubColor(anna.browser())).isEqualTo("#22aa55");
+    }
+
+    @Test
+    void aLockedHubColorIsNotOverriddenByTheService() throws Exception {
+        service("vault", "Vaultwarden", "#2f81f7");
+        jdbc.sql("UPDATE services SET reported_accent_color = '#22aa55', accent_locked = true WHERE key = 'vault'").update();
+        Session anna = loggedInWithPermissions("anna", false, "service.vault");
+        assertThat(hubColor(anna.browser())).isEqualTo("#2f81f7");
+    }
+
+    @Test
+    void aReportedColorAloneIsUsedWhenTheHubHasNone() throws Exception {
+        service("vault", "Vaultwarden", null);
+        jdbc.sql("UPDATE services SET reported_accent_color = '#22aa55' WHERE key = 'vault'").update();
+        Session anna = loggedInWithPermissions("anna", false, "service.vault");
+        assertThat(hubColor(anna.browser())).isEqualTo("#22aa55");
+        // gesperrt und ohne eigene Farbe: der allgemeine Akzent (keine Farbe)
+        jdbc.sql("UPDATE services SET accent_locked = true WHERE key = 'vault'").update();
+        assertThat(hubColor(anna.browser())).isNull();
+    }
+
     private void giveNumber(UUID user, String key, long n) {
         jdbc.sql("INSERT INTO user_permissions (user_id, permission_key, number_value) VALUES (:u, :k, :n)").param("u", user).param("k", key).param("n", n).update();
     }

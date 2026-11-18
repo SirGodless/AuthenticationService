@@ -25,6 +25,7 @@ class ServiceAdminApiTest extends AdminTestBase {
         m.put("description", "Passwörter");
         m.put("url", "https://vault.example");
         m.put("accentColor", color);
+        m.put("accentLocked", false);
         m.put("healthUrl", "");
         return m;
     }
@@ -85,5 +86,21 @@ class ServiceAdminApiTest extends AdminTestBase {
     void theOverviewListsTheServicesTab() throws Exception {
         Session admin = loggedInAdmin("joshua");
         assertThat(admin.browser().get("/api/admin/overview").body()).contains("\"services\"");
+    }
+
+    @Test
+    void theLockFlagIsStoredAndShownTogetherWithTheReportedColor() throws Exception {
+        vault();
+        jdbc.sql("UPDATE services SET reported_accent_color = '#22aa55' WHERE key = 'vault'").update();
+        Browser admin = loggedInAdmin("joshua").browser();
+        JsonNode before = json.readTree(admin.get("/api/admin/services").body()).get(0);
+        assertThat(before.get("reportedAccentColor").asString()).isEqualTo("#22aa55");
+        assertThat(before.get("accentLocked").asBoolean()).isFalse();
+        Map<String, Object> locked = update("Vaultwarden", "#2f81f7");
+        locked.put("accentLocked", true);
+        assertThat(admin.patch("/api/admin/services/vault", locked).ok()).isTrue();
+        JsonNode after = json.readTree(admin.get("/api/admin/services").body()).get(0);
+        assertThat(after.get("accentLocked").asBoolean()).isTrue();
+        assertThat(after.get("reportedAccentColor").asString()).isEqualTo("#22aa55"); // die gemeldete Farbe bleibt erhalten
     }
 }

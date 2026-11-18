@@ -1,0 +1,30 @@
+# Block für deinen bestehenden Caddy. Du trägst ihn selbst in die Caddyfile ein (ich ändere deine Caddy-Konfiguration nicht).
+# Voraussetzung: Caddy läuft im Docker-Netzwerk caddy_net, dort erreicht er die Container beim Namen.
+# Danach prüfen: caddy validate --config /etc/caddy/Caddyfile, dann neu laden.
+
+# Hub, Login, Registrierung, Dashboard und die OIDC-Schnittstellen der Dienste: alles unter auth.anfall.net.
+auth.anfall.net {
+	encode zstd gzip
+
+	# HTTPS erzwingt Caddy von selbst. HSTS sagt dem Browser, es künftig immer zu tun.
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	# Alles, was zum Backend gehört: OIDC (Discovery, Authorize, Token, JWKS, UserInfo, Logout) und die API.
+	# Der Verwaltungs-Port 8081 des Backends (Health) wird absichtlich nicht weitergegeben.
+	@backend path /oauth2/* /.well-known/* /connect/* /userinfo /api/*
+	handle @backend {
+		reverse_proxy auth-backend:8080
+	}
+
+	# Alles andere sind die statischen Seiten der Oberfläche.
+	handle {
+		reverse_proxy userhub-ui:8080
+	}
+}
+
+# Die Hauptadresse leitet auf den Hub um. (Die Seiten laufen vorerst nur unter auth.anfall.net, weil dort das
+# Sitzungs-Cookie gilt, siehe docs/decisions/hub-ui-authentication.md.)
+anfall.net, www.anfall.net {
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	redir https://auth.anfall.net{uri} permanent
+}

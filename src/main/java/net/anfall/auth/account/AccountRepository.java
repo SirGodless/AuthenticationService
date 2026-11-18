@@ -96,6 +96,14 @@ public class AccountRepository {
         jdbc.sql("UPDATE users SET language = :l WHERE id = :id").param("l", language).param("id", userId).update();
     }
 
+    public String theme(UUID userId) {
+        return jdbc.sql("SELECT theme FROM users WHERE id = :id").param("id", userId).query(String.class).single();
+    }
+
+    public void setTheme(UUID userId, String theme) {
+        jdbc.sql("UPDATE users SET theme = :t WHERE id = :id").param("t", theme).param("id", userId).update();
+    }
+
     public String language(UUID userId) {
         return jdbc.sql("SELECT language FROM users WHERE id = :id").param("id", userId)
                 .query(String.class).single();

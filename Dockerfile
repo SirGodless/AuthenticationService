@@ -1,5 +1,6 @@
 # Stufe 1: Bauen
-FROM maven:3.9-eclipse-temurin-21-alpine AS build
+# Image-Versionen sind per Digest festgenagelt (Stand 18.11.2026), Aktualisieren siehe docs/DEPLOY.md
+FROM maven:3.9-eclipse-temurin-21-alpine@sha256:308cba8b638ed7e4658cea3f8399066219466211c805f6d5728c3c9c7614661b AS build
 WORKDIR /build
 COPY pom.xml .
 # Abhängigkeiten zuerst laden, damit Änderungen am Code nicht alles neu laden
@@ -8,7 +9,7 @@ COPY src ./src
 RUN mvn -q -B -DskipTests package
 
 # Stufe 2: Laufzeit, ohne Root-Rechte
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474
 RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app app
 WORKDIR /app
 # Sperrliste bekannter Passwörter laden (festgenagelte Version mit Prüfsumme, nicht im Git)

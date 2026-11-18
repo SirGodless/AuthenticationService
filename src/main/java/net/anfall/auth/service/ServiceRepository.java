@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ServiceRepository {
 
-    private static final String COLUMNS = "key, display_name, client_id, required_permission, open_mode, health_url, description, url, accent_color";
+    private static final String COLUMNS = "key, display_name, client_id, required_permission, open_mode, health_url, description, url, accent_color, reported_accent_color, accent_locked";
 
     private final JdbcClient jdbc;
 
@@ -34,27 +34,31 @@ public class ServiceRepository {
 
     public void insert(ServiceInfo s) {
         jdbc.sql("""
-                        INSERT INTO services (key, display_name, client_id, required_permission, open_mode, health_url, description, url, accent_color)
-                        VALUES (:k, :n, :c, :p, :m, :h, :d, :u, :a)
+                        INSERT INTO services (key, display_name, client_id, required_permission, open_mode, health_url, description, url, accent_color,
+                                              reported_accent_color, accent_locked)
+                        VALUES (:k, :n, :c, :p, :m, :h, :d, :u, :a, :r, :l)
                         """)
                 .param("k", s.key()).param("n", s.displayName()).param("c", s.clientId())
                 .param("p", s.requiredPermission()).param("m", s.openMode()).param("h", s.healthUrl())
-                .param("d", s.description()).param("u", s.url()).param("a", s.accentColor()).update();
+                .param("d", s.description()).param("u", s.url()).param("a", s.accentColor())
+                .param("r", s.reportedAccentColor()).param("l", s.accentLocked()).update();
     }
 
     /** Ändert die Anzeige-Eigenschaften eines Dienstes (Name, Beschreibung, Adresse, Farbe, Health-Adresse). */
-    public void updateDisplay(String key, String displayName, String description, String url, String accentColor, String healthUrl) {
+    public void updateDisplay(String key, String displayName, String description, String url, String accentColor,
+                              boolean accentLocked, String healthUrl) {
         jdbc.sql("""
-                        UPDATE services SET display_name = :n, description = :d, url = :u, accent_color = :c, health_url = :h
+                        UPDATE services SET display_name = :n, description = :d, url = :u, accent_color = :c, accent_locked = :l, health_url = :h
                         WHERE key = :k
                         """)
                 .param("n", displayName).param("d", description).param("u", url).param("c", accentColor)
-                .param("h", healthUrl).param("k", key).update();
+                .param("l", accentLocked).param("h", healthUrl).param("k", key).update();
     }
 
     private static ServiceInfo map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
         return new ServiceInfo(rs.getString("key"), rs.getString("display_name"), rs.getString("client_id"),
                 rs.getString("required_permission"), rs.getString("open_mode"), rs.getString("health_url"),
-                rs.getString("description"), rs.getString("url"), rs.getString("accent_color"));
+                rs.getString("description"), rs.getString("url"), rs.getString("accent_color"),
+                rs.getString("reported_accent_color"), rs.getBoolean("accent_locked"));
     }
 }

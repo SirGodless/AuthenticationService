@@ -5,7 +5,7 @@ name: authservice
 
 services:
   auth-db:
-    image: postgres:17.11-alpine
+    image: postgres:17.11-alpine@sha256:e5d2edd28b1f8d40a0a6c0c9cdc545b19b56a0d5d88f94bc11a97d970d4700d0
     container_name: auth-db
     restart: unless-stopped
     environment:
@@ -21,6 +21,31 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # Datenbank-Backup nach Zeitplan: täglich um 0 Uhr (7 Tage aufbewahrt), am Monatsersten zusätzlich eines (1 Jahr).
+  # Ziel ist ein Ordner auf diesem Server (BACKUP_DIR). Siehe docs/DEPLOY.md, Abschnitt Backup.
+  auth-backup:
+    build: ./backup
+    image: auth-backup:local
+    container_name: auth-backup
+    restart: unless-stopped
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      PGHOST: auth-db
+      PGUSER: auth
+      PGDATABASE: auth
+      PGPASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
+      TZ: ${BACKUP_TZ:-Europe/Berlin}
+      # Diese beiden Schlüssel kommen in jedes Backup (ohne sie sind TOTP-Geheimnisse und OIDC-Schlüssel nach einer
+      # Wiederherstellung unlesbar). Der Pepper bewusst nicht.
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?TOTP_ENCRYPTION_KEY fehlt in .env}
+      OIDC_KEY_ENCRYPTION_KEY: ${OIDC_KEY_ENCRYPTION_KEY:?OIDC_KEY_ENCRYPTION_KEY fehlt in .env}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - mail-dkim:/mail-dkim:ro
+    networks: [internal]
 
   auth-backend:
     build: .
@@ -88,7 +113,7 @@ services:
 
   # Nur Entwicklung: docker compose --profile dev up -d --build
   mailpit:
-    image: axllent/mailpit:v1.29.7
+    image: axllent/mailpit:v1.29.7@sha256:757f22b56c1da03570afdb3d259effe5091018008a81bbedc8158cee7e16fdbc
     container_name: mailpit
     profiles: [dev]
     restart: unless-stopped

@@ -90,7 +90,7 @@ public class ServiceRegistrationService {
         redirectUris.forEach(client::redirectUri);
         clients.save(client.build());
 
-        ServiceInfo service = new ServiceInfo(key, displayName, key, permission, "new_tab", null, "", null, null);
+        ServiceInfo service = new ServiceInfo(key, displayName, key, permission, "new_tab", null, "", null, null, null, false);
         services.insert(service);
         return new RegisteredService(service, secret);
     }

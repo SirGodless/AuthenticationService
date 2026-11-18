@@ -22,7 +22,8 @@ public class ServiceAdminService {
     private static final Pattern COLOR = Pattern.compile("#[0-9a-fA-F]{6}");
 
     /** Eingaben des Dashboards. Leere Texte bei Adressen und Farbe bedeuten "nicht gesetzt". */
-    public record Update(String displayName, String description, String url, String accentColor, String healthUrl) {
+    public record Update(String displayName, String description, String url, String accentColor, Boolean accentLocked,
+                         String healthUrl) {
     }
 
     private final ServiceRepository services;
@@ -51,8 +52,9 @@ public class ServiceAdminService {
         String url = cleanUrl(u.url(), "service_url_invalid");
         String healthUrl = cleanUrl(u.healthUrl(), "service_health_url_invalid");
         String color = cleanColor(u.accentColor());
-        services.updateDisplay(key, name, description, url, color, healthUrl);
-        audit.record(actor, null, "service.updated", Map.of("service", key, "accent_color", String.valueOf(color),
+        boolean locked = Boolean.TRUE.equals(u.accentLocked());
+        services.updateDisplay(key, name, description, url, color, locked, healthUrl);
+        audit.record(actor, null, "service.updated", Map.of("service", key, "accent_color", String.valueOf(color), "accent_locked", locked,
                 "url_changed", !java.util.Objects.equals(old.url(), url), "health_url_changed", !java.util.Objects.equals(old.healthUrl(), healthUrl)), ip);
     }
 

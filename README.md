@@ -4,7 +4,7 @@ Zentrales User-Management und OIDC-Provider für die Dienste auf anfall.net. Das
 die Oberfläche liegt im Schwesterrepo `UserHub` (muss im Nachbarordner liegen). Die verbindliche Spezifikation
 steht in `CLAUDE.md`.
 
-**Stand:** Etappe 6 (Hub). Seitenmenü mit den Diensten des Users, Statusanzeige, Akzentfarbe pro Dienst, Profilseite, Hell/Dunkel. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Registrierung nur über Einladungslinks (Erstellen, Gültigkeit, Platzlimit, Prüfung des Erstellers beim Einlösen, IP-Sperre bei falschen Links).
+**Stand:** Etappe 7 (alle Etappen gebaut). Zuletzt: Backup-Container, Caddy-Block, Absicherung, Darstellung als Kontoeinstellung. Davor: Hub Seitenmenü mit den Diensten des Users, Statusanzeige, Akzentfarbe pro Dienst, Profilseite, Hell/Dunkel. Konten, Login, Passwort-Reset, Mailversand, NIST-konforme Passwörter, der OIDC-Provider (Discovery, Authorize mit PKCE, Token, JWKS, UserInfo, Refresh nur mit `offline_access`, Rechteprüfung am Dienst) sowie Rechte (boolesch und Zahl), Rollen als Live-Gruppen, das Admin-Dashboard (Benutzer, Rollen, Rechte, Protokoll), Passwort-Reset erzwingen und die 2FA-Verwaltung (einrichten, Wiederherstellungscodes erneuern, abschalten). Registrierung nur über Einladungslinks (Erstellen, Gültigkeit, Platzlimit, Prüfung des Erstellers beim Einlösen, IP-Sperre bei falschen Links).
 
 ## Ordnerübersicht
 
@@ -16,6 +16,8 @@ steht in `CLAUDE.md`.
 | `src/main/resources/application.yml` | Einstellungen, die aus Umgebungsvariablen kommen. |
 | `src/test/java/net/anfall/auth/` | Tests, gleiche Paketstruktur wie der Code. `testsupport/` enthält die gemeinsamen Hilfen (Test-Datenbank, Test-Mailserver, Browser-Simulation). |
 | `tests/e2e/` | Ende-zu-Ende-Test im echten Browser mit Test-Caddy (`run.sh`). |
+| `backup/` | Container für die Datenbank-Backups: Zeitplan, Aufbewahrung, Wiederherstellung und ein Test dafür. |
+| `deploy/` | `Caddyfile.snippet`: der Block, den du in deinen Caddy einträgst. |
 | `scripts/` | Skripte: Sperrliste laden (`fetch-blocklist.sh`), Betreiber-Befehle im Container (`auth-admin`). |
 | `docs/` | `DEPLOY.md` (Deployment), `decisions/` (Entscheidungen nach Thema, Inhaltsverzeichnis in `DECISIONS.md`), `NIST-800-63B-4.md`, `OPEN-QUESTIONS.md`, `THIRD-PARTY.md`. |
 | `Dockerfile`, `docker-compose.yml`, `.env.example` | Image des Backends, der ganze Stack (Datenbank, Mailserver, Backend, UI), Vorlage für die Einstellungen. |
@@ -41,6 +43,7 @@ docker compose logs auth-backend | grep SETUP-LINK   # Link für den ersten Admi
 ```bash
 mvn test            # Unit- und Integrationstests, brauchen Docker (Test-PostgreSQL)
 tests/e2e/run.sh    # Ende-zu-Ende im Browser, siehe Kommentar in der Datei (Node mit Playwright nötig)
+backup/test.sh      # Backup: Aufbewahrung über 400 nachgespielte Tage und Wiederherstellung (braucht Docker)
 ```
 
 Zum Entwickeln mit Test-Mailserver statt dem echten: `MAIL_HOST=mailpit`, `MAIL_PORT=1025` in `.env` und
@@ -156,9 +159,13 @@ Postfix versucht es weiter.
 
 Unter `https://auth.anfall.net/admin` verwaltest du Benutzer (suchen, bannen, 2FA zurücksetzen, Passwort-Reset erzwingen, Rollen und direkte Rechte), Rollen, Rechte und liest das Protokoll. Welche Reiter du siehst, hängt von deinen `admin.*`-Rechten ab. Admin-Funktionen verlangen eine eingerichtete 2FA, ohne sie zeigt die Seite einen Hinweis mit Link zu `https://auth.anfall.net/account/2fa`. Dort richtet jeder User seine 2FA ein, erzeugt neue Wiederherstellungscodes und (nur ohne Verwaltungsrechte) schaltet sie ab. Die Dienste (Clients) verwaltest du bis Etappe 6 weiter per Befehl (siehe unten).
 
+## Backup
+
+Der Container `auth-backup` macht jeden Tag um 0 Uhr ein Backup (7 Tage aufbewahrt) und am Monatsersten ein weiteres (1 Jahr). Ziel ist der Ordner `backups/` auf dem Server. Einrichtung, Prüfen und Wiederherstellen stehen in `docs/DEPLOY.md`, Abschnitt Backup.
+
 ## Hub und Dienste
 
-Nach dem Login zeigt `https://auth.anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du weiter mit `auth-admin register-service` an. Der Hub läuft vorerst auf `auth.anfall.net`, weil dort das Sitzungs-Cookie gilt. Ihn zusätzlich unter `anfall.net` zu erreichen (Cookie von `auth.anfall.net` plus CORS, siehe `docs/decisions/hub-ui-authentication.md`) ist für Etappe 7 vorgesehen.
+Nach dem Login zeigt `https://auth.anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du weiter mit `auth-admin register-service` an. Der Hub läuft auf `auth.anfall.net`, `anfall.net` leitet dorthin um. Wer im Hub angemeldet ist, ist auch in den Diensten angemeldet, ohne neue Eingabe, und die Dienste bleiben direkt aufrufbar (Einmal-Anmeldung über den OIDC-Provider). Darstellung (hell, dunkel, wie das Gerät) und Sprache stellt jeder auf der Profilseite ein. Eine vom Dienst gemeldete Farbe überschreibt die im Hub eingestellte, außer du setzt im Dashboard bei dem Dienst das Kästchen "Diese Farbe behalten" (einen Meldeweg für Dienste gibt es noch nicht).
 
 ## Einladungslinks
 

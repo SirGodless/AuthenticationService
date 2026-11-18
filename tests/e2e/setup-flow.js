@@ -302,13 +302,36 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   ok(colors.href === 'https://dienst.example/' && colors.target === '_blank', 'Hub: Dienst öffnet in neuem Tab');
   ok((await p3.textContent('#sidebar nav')).includes('E2E Dienst'), 'Hub: Seitenmenü listet den Dienst');
   ok((await p3.textContent('#stat-services')) === '1', 'Hub: Kennzahlen');
-  await p3.click('[data-set-theme="light"]');
-  ok(await p3.getAttribute('html', 'data-theme') === 'light', 'Hell/Dunkel: Umschalten wirkt sofort');
-  await p3.reload(); await p3.waitForSelector('#services tr');
-  ok(await p3.getAttribute('html', 'data-theme') === 'light', 'Hell/Dunkel: die Wahl bleibt nach dem Neuladen');
+  // Darstellung ist eine Einstellung des Kontos (Profilseite), es gibt keinen Umschalter auf jeder Seite
+  ok(await p3.locator('[data-set-theme]').count() === 0, 'Darstellung: kein Umschalter auf der Startseite');
+  await p3.goto(`${base}/account`);
+  await p3.waitForSelector('#profile-theme');
+  await p3.selectOption('#profile-theme', 'light');
+  await p3.waitForSelector('#theme-saved:not([hidden])');
+  ok(await p3.getAttribute('html', 'data-theme') === 'light', 'Darstellung: Einstellung im Profil wirkt sofort');
+  await p3.goto(`${base}/`); await p3.waitForSelector('#services tr');
+  ok(await p3.getAttribute('html', 'data-theme') === 'light', 'Darstellung: bleibt auf anderen Seiten und nach dem Neuladen');
   const lightBtn = await p3.locator('#services a.btn.svc').evaluate((el) => getComputedStyle(el).backgroundColor);
   ok(lightBtn === 'rgb(229, 160, 13)', 'Hub: Dienstfarbe gilt in beiden Darstellungen');
-  await p3.click('[data-set-theme="dark"]');
+
+  // Farbe vom Dienst überschreibt die Hub-Farbe, außer sie ist festgehalten (Kästchen im Dashboard)
+  const dbCmd = backendCmd.replace('auth-backend', 'auth-db');
+  const sql = (q) => execSync(`${dbCmd} psql -U auth -d auth -c "${q}"`, { encoding: 'utf8' });
+  const btnColor = async () => { await p3.reload(); await p3.waitForSelector('#services tr'); return p3.locator('#services a.btn.svc').evaluate((el) => getComputedStyle(el).backgroundColor); };
+  sql("UPDATE services SET reported_accent_color = '#22aa55' WHERE key = 'e2e'");
+  ok(await btnColor() === 'rgb(34, 170, 85)', 'Farbe: vom Dienst gemeldete Farbe überschreibt die Hub-Farbe');
+  await p3.goto(`${base}/admin`);
+  await p3.click('#tabs .tab:has-text("Services")');
+  await p3.waitForSelector('#e2e-lock');
+  ok((await p3.textContent('#panel .card-inner:has(#e2e-lock)')).includes('#22aa55'), 'Dashboard: zeigt die vom Dienst gemeldete Farbe');
+  await p3.check('#e2e-lock');
+  await p3.click('#panel .card-inner:has(#e2e-lock) button:has-text("Save")');
+  await p3.waitForFunction(() => document.querySelector('#notice').textContent.includes('Saved'));
+  await p3.goto(`${base}/`);
+  ok(await btnColor() === 'rgb(229, 160, 13)', 'Farbe: mit gesetztem Kästchen bleibt die Hub-Farbe');
+  await p3.goto(`${base}/account`); await p3.waitForSelector('#profile-theme');
+  await p3.selectOption('#profile-theme', 'dark'); await p3.waitForSelector('#theme-saved:not([hidden])');
+  await p3.goto(`${base}/`); await p3.waitForSelector('#services tr');
   if (process.env.SHOT_DIR) await p3.screenshot({ path: process.env.SHOT_DIR + '/hub.png', fullPage: true });
 
   // ---------- Einladungslinks (Etappe 5) ----------
@@ -409,6 +432,16 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   ok((await get(`${base}/api/setup/${token}`)).s === 404, 'Setup-Link nach dem Admin tot');
   const h = (await get(`${base}/login`)).h;
   ok((h['content-security-policy'] || '').includes("frame-ancestors 'none'") && h['cache-control'] === 'no-store', 'Login-Seite: frame-ancestors none, no-store');
+  // Sicherheits-Header aller Seiten der UI (frame-ancestors none, nosniff, kein Referrer)
+  for (const path of ['/', '/login', '/forgot', '/access-denied', '/admin', '/account', '/account/2fa', '/account/links', '/invite/abc', '/reset/abc', '/confirm/abc']) {
+    const hh = (await get(`${base}${path}`)).h;
+    const good = (hh['content-security-policy'] || '').includes("frame-ancestors 'none'") && (hh['content-security-policy'] || '').includes("default-src 'none'")
+      && hh['x-frame-options'] === 'DENY' && hh['x-content-type-options'] === 'nosniff' && hh['referrer-policy'] === 'no-referrer';
+    ok(good, 'Header: ' + path + ' mit CSP, frame-ancestors none, nosniff, no-referrer');
+  }
+  ok(((await get(`${base}/login`)).h['strict-transport-security'] || '').includes('max-age=31536000'), 'Header: HSTS kommt von Caddy (aus deploy/Caddyfile.snippet)');
+  const apiH = (await get(`${base}/api/auth/me`)).h;
+  ok(!apiH['access-control-allow-origin'] && apiH['x-content-type-options'] === 'nosniff', 'Header: API ohne CORS-Freigabe, mit nosniff');
   ok(problems.length === 0, 'keine Konsolenfehler / CSP-Verstöße ' + JSON.stringify(problems));
   await browser.close();
 })().catch(async (e) => {

@@ -28,7 +28,7 @@ public class HubService {
     public record MailView(String status, Instant checkedAt) {
     }
 
-    public record AccountView(String username, String language, boolean twoFactorEnabled, boolean isAdmin,
+    public record AccountView(String username, String language, String theme, boolean twoFactorEnabled, boolean isAdmin,
                               boolean canCreateLinks, long activeLinks, PermissionValue maxActiveLinks) {
     }
 
@@ -60,13 +60,13 @@ public class HubService {
                 .map(s -> {
                     var status = health.status(s.key());
                     return new HubServiceView(s.key(), s.displayName(), s.description(), s.url(), s.openMode(),
-                            s.accentColor(), status.state(), status.checkedAt());
+                            s.effectiveAccentColor(), status.state(), status.checkedAt());
                 }).toList();
         boolean isAdmin = effective.entrySet().stream().anyMatch(e -> e.getKey().startsWith("admin.") && e.getValue().set());
         var links = invites.options(id);
         // Der Status des Mailservers ist nur für Admins sichtbar
         MailView mail = isAdmin ? new MailView(health.mailStatus().state(), health.mailStatus().checkedAt()) : null;
-        return new Hub(new AccountView(me.username(), accounts.language(id), guard.hasTwoFactor(id), isAdmin, links.canCreate(),
+        return new Hub(new AccountView(me.username(), accounts.language(id), accounts.theme(id), guard.hasTwoFactor(id), isAdmin, links.canCreate(),
                 links.activeCount(), links.maxActive()), visible, mail);
     }
 }

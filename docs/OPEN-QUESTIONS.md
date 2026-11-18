@@ -1,11 +1,27 @@
 # Offene Fragen an Joshua
 
-Stand: Etappe 6 (18.11.2026).
+Stand: Etappe 7 (18.11.2026). Alle sieben Etappen sind gebaut.
+
+## Überblick: Was noch offen ist
+
+**Vor dem Echtbetrieb zu tun (von dir, auf dem Server):**
+
+1. `docs/DEPLOY.md` durchgehen (Ordner für Backups, `.env`, Caddy-Block, Mail-DNS).
+2. Die [A]-Annahmen unten bestätigen oder korrigieren (je Etappe eine Liste).
+3. **Schwachstellenprüfung der Abhängigkeiten** (**[U]**): In der Entwicklungsumgebung nicht möglich. Vor dem Release z. B. `mvn org.owasp:dependency-check-maven:check` laufen lassen. Aufgefallen: Tomcat 11.0.27 (neuer ist 11.0.29).
+4. Dienste anbinden und testen (**zurückgestellt**, du suchst eine Lösung für die Einbindung). Ob Single Sign-on in Vaultwarden, Audiobookshelf und Pelican so funktioniert wie am Provider getestet, geht nur auf dem Server.
+
+**Bewusst offen oder nicht gebaut (**[O]**):** Dienste im Dashboard anlegen (bis dahin `auth-admin register-service`), Meldeweg, über den ein Dienst seine Farbe selbst schickt, Single Logout (Abmelden im Hub beendet die Sitzung beim Provider, nicht die der Dienste), Einbetten der Dienste, Passkeys, Löschfunktion für Konten, E-Mail-Änderung durch User, Pelican-Anbindung, Hub zusätzlich unter `anfall.net` (nur mit CORS, falls du es später willst).
+
+**Nicht prüfbar in der Entwicklung (**[U]**):** echter Mailversand und Zustellung an Gmail oder Outlook, Port 25 ausgehend, rDNS, echte Domains und Zertifikate, echte Dienste, Verhalten der Dienste bei Sperren (wie schnell ein Bann dort wirkt), Argon2-Dauer auf dem Zielsystem (Log beim Start).
 
 ## Erledigt (Antworten vom 18.11.2026)
 
 - **`offline_access`:** Freigegeben, Refresh-Tokens gibt es nur noch mit diesem Scope (`decisions/oidc-provider.md`). Dienste müssen den Scope anfordern, wenn sie eine längere Sitzung wollen.
-- **Hub-Anmeldung:** Variante 1 (Sitzungs-Cookie, CORS nur für `anfall.net`) bleibt die Annahme.
+- **Hub-Adresse:** `auth.anfall.net` reicht. `anfall.net` und `www.anfall.net` leiten um, CORS wird nicht gebraucht.
+- **Darstellung (hell, dunkel):** als Einstellung im Konto, nicht auf jeder Seite.
+- **Farbe von Diensten:** Eine vom Dienst gemeldete Farbe überschreibt die Hub-Farbe, außer ein Kästchen im Hub hält sie fest.
+- **Single Sign-on:** Wer angemeldet ist, kommt ohne neue Eingabe in jeden Dienst mit Recht. Dienste bleiben direkt aufrufbar. Umgesetzt und getestet am Provider.
 
 - **ID-Token 30 Minuten:** in Ordnung.
 - **Dienste (Vaultwarden, Audiobookshelf, ...):** Die Anbindung ist vorerst zurückgestellt. Joshua sucht eine andere Lösung, weil sich die Dienste nicht gut genug einbinden lassen und die Oberflächen ohnehin angepasst werden müssen. Der Provider aus Etappe 3 bleibt, wie er ist. Es wird nichts für einzelne Dienste gebaut oder getestet, bis Joshua die neue Richtung nennt. Die Fragen zu Single Logout und Dienst-Einstellungen sind damit vertagt.
@@ -23,14 +39,18 @@ Stand: Etappe 6 (18.11.2026).
 
 ## Zu entscheiden
 
-00. **Hub unter `anfall.net`:** Der Hub läuft jetzt auf `auth.anfall.net` (gleiche Adresse wie die API, dort gilt das Sitzungs-Cookie). Unter `anfall.net` bräuchte er Variante 1 aus `hub-ui-authentication.md` (Cookie von `auth.anfall.net` plus CORS). Das ist noch nicht gebaut und gehört zu Etappe 7 (Header und CORS). **Frage:** Reicht dir `auth.anfall.net` als Adresse des Hubs, oder soll `anfall.net` unbedingt die Hub-Adresse sein (dann bauen wir die CORS-Variante)?
+000. **Annahmen aus Etappe 7 zur Bestätigung** (Einzelheiten in `decisions/security-and-delivery.md`):
+   - Das Backup läuft als eigener Container mit eigener Zeitplan-Schleife (nicht Cron). Im Backup liegen Dump, die beiden Schlüssel (TOTP, OIDC) und der DKIM-Schlüssel, nicht der Pepper. **Hinweis:** Dump und Schlüssel liegen damit zusammen, wer den Ordner lesen kann, kann TOTP-Geheimnisse entschlüsseln. Behandle `backups/` wie die `.env`.
+   - Der Mailserver-Status im Hub ist eine Erreichbarkeitsprüfung, kein Zustelltest.
+   - Vor dem Login (ohne Konto) gilt die Darstellung des Geräts, bis jemand sich auf diesem Browser angemeldet hat.
+   - `anfall.net` und `www.anfall.net` leiten dauerhaft (301) auf `auth.anfall.net` um.
 
 00. **Annahmen aus Etappe 6 zur Bestätigung** (Einzelheiten in `decisions/hub-and-services.md`):
    - Schriftfarbe auf Dienstknöpfen wird automatisch Schwarz oder Weiß, ein offline markierter Dienst bleibt öffenbar (umrandeter Knopf).
    - Status: Antwort 2xx oder 3xx innerhalb von 5 Sekunden, Prüfung alle 60 Sekunden, Hub holt alle 30 Sekunden neu.
    - Der Mailserver-Status ist eine Erreichbarkeitsprüfung (Verbindung zum Mailport), kein Zustelltest, und nur für Admins sichtbar.
    - Dienste werden weiter per `auth-admin register-service` angelegt, das Dashboard ändert nur Anzeige, Adressen und Farbe.
-   - Später soll ein Dienst seine Farbe selbst melden können (noch nichts gebaut, nur vorbereitet). **Offen:** Soll die vom Dienst gemeldete Farbe die im Dashboard eingestellte ersetzen oder nur als Vorschlag gelten?
+   - Die Meldung der Farbe durch einen Dienst ist vorbereitet (Spalten und Kästchen), einen Meldeweg gibt es noch nicht.
 
 0. **Annahmen aus Etappe 5 zur Bestätigung** (Einzelheiten in `decisions/invite-links.md`):
    - Nicht gesetztes `links.max_active` heißt: kein Platz.
@@ -51,7 +71,7 @@ Stand: Etappe 6 (18.11.2026).
    - `/api/admin/overview` verlangt keine 2FA (nur Übersicht, damit die Seite den Hinweis zeigen kann).
    - Passwort-Reset erzwingen nur bei bestätigter E-Mail.
    - Admin-Seiten laufen gleich-origin unter `auth.anfall.net/admin`, Rückfragen mit Browser-Dialogen bis zum Design (Etappe 6).
-2. **Zeitzone für "0 Uhr" beim Backup:** Ich nehme Europe/Berlin an, sag Bescheid, wenn es UTC sein soll (reicht bis Etappe 7).
+2. **Zeitzone für "0 Uhr" beim Backup:** Umgesetzt mit Europe/Berlin (`BACKUP_TZ` in `.env`). Sag Bescheid, wenn es UTC sein soll.
 
 ## Nicht verifiziert
 

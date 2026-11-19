@@ -30,7 +30,7 @@ Kennzeichnung der Aussagen:
 - [E] Der Hub zeigt links eine Sidebar mit den Diensten, die der User nutzen darf.
 - [E] Die Userbase ist klein. Skalierung ist kein Ziel.
 
-Nicht Teil der aktuellen Etappen: Löschfunktion für Konten, Einbetten der Dienste, Pelican-Anbindung, Passkeys, E-Mail-Änderung (siehe Abschnitt 12).
+Nicht Teil der aktuellen Etappen: Löschfunktion für Konten, Pelican-Anbindung, Passkeys, E-Mail-Änderung (siehe Abschnitt 12).
 
 ## 2. Architektur und Deployment
 
@@ -147,7 +147,7 @@ Dienste (Clients) und Hosts: [A] laut Joshuas Infrastruktur-Notizen, vor Verwend
 | Audiobookshelf | `audiobooks.anfall.net` | Mobil-Redirect `audiobookshelf://oauth` und `/auth/openid/mobile-redirect` [U] |
 | Pelican Panel | `gs.anfall.net` | [O] erst später, Plugins vorher testen |
 
-- [E] Jeder Dienst hat im Datenmodell einen Öffnungsmodus (`open_mode`: `new_tab` oder `embedded`). Zuerst wird nur weitergeleitet (neuer Tab). Der Umschalter pro Dienst muss später leicht möglich sein.
+- [E] Jeder Dienst hat einen Öffnungsmodus (`open_mode`: `new_tab` oder `embedded`), pro Dienst im Dashboard umschaltbar. Joshua (19.11.2026): Jeder Dienst soll immer auf zwei Arten nutzbar sein, im Hub eingebettet und als eigene Webseite unter eigener Subdomain. Der Dienst darf für den Rahmen eine eigene Ansicht liefern. Die Regeln dafür stehen in `docs/INTEGRATION.md`, Abschnitt 11.
 - [A] Dienste und Clients verwaltet das Admin-Dashboard: Name, Anzeigename, Redirect-URIs, benötigtes Recht, Öffnungsmodus, Health-URL.
 - [U] Audiobookshelf: Rollenübernahme über OIDC-Claims und die Kriterien von "Match existing users by" sind nicht dokumentiert, ABS-Rollen pflegt Joshua vorerst in ABS selbst.
 - [U] Sperren: Laut ABS-Doku wird das Refresh-Token nach dem Login gegen Audiobookshelf selbst geprüft, nicht gegen den Provider. Ein Bann im Hub verhindert dann neue Logins, beendet laufende ABS-Sitzungen aber nicht sofort. Bei Vaultwarden sagt die Doku nichts zu Sperren. Baue nicht auf sofortige Wirkung in den Diensten.
@@ -162,14 +162,16 @@ Dienste (Clients) und Hosts: [A] laut Joshuas Infrastruktur-Notizen, vor Verwend
 
 ## 8. Hub-Oberfläche und Design
 
-- [E] Links eine Sidebar mit den Diensten, die der User nutzen darf. Ein Klick leitet auf den Dienst weiter (neuer Tab).
+- [E] Links eine Sidebar mit den Diensten, die der User nutzen darf. Ein Klick öffnet den Dienst, je nach Öffnungsmodus in einem neuen Tab oder eingebettet im Hub.
 - [E] Status: Jeder, der die Berechtigung für einen Dienst hat, sieht im Hub, ob dieser Dienst gerade aktiv ist. [A] Das Backend prüft die Health-URLs serverseitig alle 60 Sekunden. Der Status des Mail-Dienstes ist nur für Admins sichtbar. Es gibt nur eine Anzeige, keine Alarm-Mails.
 - [A] Admin-Dashboard: User, Bann, Rollen, Rechte, alle Links, Dienste und Clients, Protokoll, Einstellungen (Link-Grenzen). Profilseite: Passwort, TOTP, Wiederherstellungscodes, eigene Links erstellen und deaktivieren.
 - [E] Design: modern, freundlich und verspielt, Dark Mode zuerst. Es ist nicht der bisherige anfall.net-Look (kein Schwarz mit Rot und Cyan, keine Scanlines).
 - [A] Etappe 6 beginnt mit 2 bis 3 Stilvorschlägen als statische Mockup-Seiten (Login und Hub-Startseite), Joshua wählt. Davor nur schlichtes, funktionales Styling mit CSS-Variablen. Light Mode kommt später, die Variablen sind so gebaut, dass er leicht ergänzt werden kann.
 - [E] Joshua (18.11.2026): Hell oder Dunkel ist eine Einstellung im Account (Profilseite), kein Umschalter auf jeder Seite. Jeder Dienst hat im Hub eine eigene Akzentfarbe (Knöpfe). Meldet ein Dienst später selbst eine Farbe, überschreibt sie die im Hub eingestellte, außer im Hub ist festgehalten, dass sie es nicht soll (Kästchen).
 - [E] Joshua (18.11.2026): Dienste bleiben direkt aufrufbar. Wer im Hub angemeldet ist, ist ohne erneute Anmeldung auch in den Diensten angemeldet (Einmal-Anmeldung über den OIDC-Provider, wie bei Google).
-- [E] Joshua (18.11.2026): Über den Hub laufen vor allem eigene oder umgeschriebene Dienste. Dienste werden im Dashboard angelegt. Rechte stehen nicht im Token: Der Dienst fragt sie über die Dienst-Schnittstelle ab (Rechte eines Dienstes tragen seinen Schlüssel als Präfix). Dienste melden Farbe und Status selbst. Abmelden im Hub beendet die Dienste nicht, das lösen die Dienste beim Umschreiben (kurze Sitzungen, Refresh). Der Standard dafür steht in `docs/INTEGRATION.md` und `docs/api/openapi.yaml`.
+- [E] Joshua (18.11.2026): Über den Hub laufen vor allem eigene oder umgeschriebene Dienste. Dienste werden im Dashboard angelegt. Rechte stehen nicht im Token: Der Dienst fragt sie über die Dienst-Schnittstelle ab (Rechte eines Dienstes tragen seinen Schlüssel als Präfix). Dienste melden Farbe und Status selbst. Der Standard dafür steht in `docs/INTEGRATION.md` und `docs/api/openapi.yaml`.
+- [E] Joshua (19.11.2026): **Abmelden im Hub meldet überall ab**, wie bei Google. Das gilt für die Sitzung des Browsers oder Geräts (nicht für andere Geräte). Der Hub schickt dafür ein Logout-Token per OIDC Back-Channel-Logout an jeden Dienst, der aus dieser Sitzung angemeldet wurde. Bann und Passwort- oder 2FA-Reset beenden alle Sitzungen. Das ersetzt die Entscheidung vom 18.11.2026 ("Abmelden beendet die Dienste nicht"). Zustellung einmalig, im Hintergrund, mit Zeitlimit, die Refresh-Tokens werden zusätzlich gelöscht. [U] Die Spezifikation selbst war nicht abrufbar, siehe `docs/decisions/single-logout-and-embedding.md`.
+- [E] Joshua (19.11.2026): **Dienste speichern von Nutzern nur die UUID** und eigene Daten dazu. Alle Nutzerdaten (Name, E-Mail, Sprache) verwaltet der Hub und liefert sie auf Abfrage (`GET /api/service/users`). Brauchen später mehrere Dienste dieselben Daten, wird entschieden, ob sie in den Hub wandern oder anderswohin.
 - [E] Die UI-Sprache ist pro Account einstellbar. Standard ist Englisch, als Alternative gibt es Deutsch. Alle Texte (UI, Fehlermeldungen, Mails) liegen in Sprachdateien (`en` und `de`), nichts steht fest im Code. Weitere Sprachen sollen später leicht ergänzbar sein.
 - [A] Die Sprache wird als Feld am Account gespeichert (`en` oder `de`) und in der Profilseite umgestellt. Mails gehen in der Sprache des Accounts. Vor dem Login (Login, Registrierung, Setup, Passwort-Reset) gibt es einen Sprachumschalter, Standard Englisch, die Wahl wird nur im Browser gemerkt. Bei der Registrierung wird die gewählte Sprache als Account-Sprache gespeichert, die Bestätigungsmail kommt in dieser Sprache. Beim Setup des ersten Admins gilt dasselbe.
 - [A] Keine externen Schriften oder CDNs (alles selbst hosten). Grundlegende Barrierefreiheit (Kontrast, Tastaturbedienung).
@@ -204,11 +206,12 @@ Jede Etappe: Branch, Tests, PR, Zusammenfassung mit Annahmen und offenen Fragen,
 5. **Einladungslinks:** alle Regeln aus Abschnitt 4. Test: Rennen beim gleichzeitigen Einlösen, Grenzen der Laufzeit, Prüfung des Erstellers beim Einlösen, Platzlimit, IP-Sperre.
 6. **Hub-UI:** Stilvorschläge, Sidebar, Dienste, Statusanzeige, Profilseite.
 7. **Absicherung und Auslieferung:** Header und CORS prüfen, `docs/DEPLOY.md`, `deploy/Caddyfile.snippet`, Backup-Hinweis, Überblick der offenen Punkte.
+8. **Gemeinsames Abmelden, Einbetten, Nutzerabfrage (19.11.2026):** Back-Channel-Logout, Öffnungsmodus `embedded` im Hub, `GET /api/service/users`, Spezifikation in `docs/INTEGRATION.md`. Danach der erste eigene Dienst (SubSplit) auf Konten aus dem Hub.
 
 ## 12. Offen und nicht verifiziert
 
 - [O] E-Mail-Änderung durch User (nicht besprochen, nicht bauen).
-- [O] Passkeys, Löschfunktion, Einbetten, Pelican-Anbindung, Dienste ohne OIDC.
+- [O] Passkeys, Löschfunktion, Pelican-Anbindung, Dienste ohne OIDC, Nachrichten zwischen Hub und eingebettetem Dienst, ein Abmelden vom Dienst aus für alle Dienste, ein eigener Anzeigename im Hub.
 - [O] Light Mode.
 - [U] Audiobookshelf: Rollen aus Claims, Kriterien von "Match existing users by".
 - [U] Wie schnell Sperren in Audiobookshelf und Vaultwarden wirken.

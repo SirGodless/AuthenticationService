@@ -1,6 +1,7 @@
 """Beispiel: Ein Dienst nutzt die Schnittstellen des Hubs (siehe docs/INTEGRATION.md).
 
-Zeigt: Token des Dienstes holen, Rechte eines Nutzers abfragen, Farbe und Status melden und ein Token eines Nutzers prüfen.
+Zeigt: Token des Dienstes holen, Rechte und Profile von Nutzern abfragen, Farbe und Status melden, ein Token eines Nutzers prüfen
+und ein Logout-Token (Back-Channel-Logout) prüfen.
 Braucht:  pip install requests pyjwt cryptography
 Aufruf:   HUB_ISSUER=https://anfall.net CLIENT_ID=media CLIENT_SECRET=... python service_client.py <sub-des-nutzers>
 """
@@ -52,6 +53,13 @@ def user_permissions(sub: str, prefix: str | None = None) -> dict:
     return r.json()
 
 
+def users(subs: list[str] | None = None) -> list[dict]:
+    """Profile (sub, username, email, emailVerified, locale, banned, access). Ohne subs: alle Nutzer mit Zugang zum Dienst."""
+    r = requests.get(f"{BASE_URL}/api/service/users", params={"sub": subs} if subs else None, headers=_headers(), timeout=10)
+    r.raise_for_status()
+    return r.json()["users"]
+
+
 def report(color: str | None = None, state: str | None = None, ttl_seconds: int = 180) -> None:
     """Farbe (#rrggbb, "" löscht) und/oder Status (up oder down) melden."""
     body = {}
@@ -68,12 +76,36 @@ def verify_user_token(token: str) -> dict:
     return jwt.decode(token, key, algorithms=["RS256"], audience=CLIENT_ID, issuer=ISSUER)
 
 
+LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout"
+
+
+def verify_logout_token(token: str) -> dict:
+    """Prüft ein Logout-Token des Hubs (Abschnitt 5.6 der Anleitung). Gibt die Claims zurück, sonst eine Ausnahme.
+
+    Danach beendet der Dienst die Sitzungen: bei vorhandenem claims["sid"] nur die mit dieser sid, sonst alle Sitzungen von claims["sub"].
+    Zusätzlich sollte der Dienst das jti kurz merken und ein zweites Mal ablehnen.
+    """
+    if jwt.get_unverified_header(token).get("typ") != "logout+jwt":
+        raise jwt.InvalidTokenError("typ ist nicht logout+jwt")
+    key = _jwks.get_signing_key_from_jwt(token).key
+    claims = jwt.decode(token, key, algorithms=["RS256"], audience=CLIENT_ID, issuer=ISSUER,
+                        options={"require": ["iss", "aud", "iat", "exp", "jti", "events"]})
+    if LOGOUT_EVENT not in claims["events"]:
+        raise jwt.InvalidTokenError("events enthält das Logout-Ereignis nicht")
+    if "nonce" in claims:
+        raise jwt.InvalidTokenError("ein Logout-Token darf kein nonce haben")
+    if "sub" not in claims and "sid" not in claims:
+        raise jwt.InvalidTokenError("weder sub noch sid")
+    return claims
+
+
 if __name__ == "__main__":
     sub = sys.argv[1]
     info = user_permissions(sub)
     print("Zugang:", info["access"])
     for p in info["permissions"]:
         print(" -", p["key"], p.get("value", "unbegrenzt" if p.get("unlimited") else "ja"))
+    print("Nutzer mit Zugang:", [u["username"] for u in users()])
     report(state="up")
     print("Status gemeldet. Das Token des Dienstes selbst ist gültig bis:", time.strftime("%H:%M:%S", time.localtime(_token["expires"])))
     claims = verify_user_token(service_token())

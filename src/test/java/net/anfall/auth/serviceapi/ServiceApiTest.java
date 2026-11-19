@@ -309,4 +309,48 @@ class ServiceApiTest extends IntegrationTestBase {
         assertThat(media.verify(tokens.accessToken()).getClaims().keySet()).doesNotContain("permissions", "media.upload");
         assertThat(tokens.accessToken().length()).isLessThan(1200);   // klein, auch bei vielen Rechten
     }
+
+    // ---- Nutzerabfrage: Der Dienst kennt nur die UUID und holt Namen und Adresse hier ab ----
+
+    @Test
+    void aServiceListsTheUsersWithAccessAndLooksUpOthersBySub() throws Exception {
+        UUID ben = createUser("ben", "ben@example.com", PASSWORD, true, "de");      // ohne Zugang
+        UUID cara = createUser("cara", "cara@example.com", PASSWORD, true);
+        permissions.grantToUser(cara, "service.media");
+
+        JsonNode all = json.readTree(call("/api/service/users", mediaToken).getContentAsString()).get("users");
+        assertThat(all).hasSize(2);                                         // anna und cara, nicht ben
+        assertThat(all.get(0).get("username").asString()).isEqualTo("anna");
+        assertThat(all.get(0).get("email").asString()).isEqualTo("anna@example.com");
+        assertThat(all.get(0).get("emailVerified").asBoolean()).isTrue();
+        assertThat(all.get(0).get("access").asBoolean()).isTrue();
+
+        // Abfrage per sub liefert auch Nutzer ohne Zugang (der Dienst kennt die UUID aus seinen Daten), mit access=false
+        JsonNode some = json.readTree(call("/api/service/users?sub=" + ben + "&sub=" + anna + "&sub=" + UUID.randomUUID(), mediaToken)
+                .getContentAsString()).get("users");
+        assertThat(some).hasSize(2);                                        // unbekannte UUID fehlt einfach
+        assertThat(some.get(0).get("access").asBoolean()).isFalse();
+        assertThat(some.get(0).get("locale").asString()).isEqualTo("de");
+        assertThat(some.get(1).get("access").asBoolean()).isTrue();
+    }
+
+    @Test
+    void aBannedUserIsStillResolvableButHasNoAccess() throws Exception {
+        jdbc.sql("UPDATE users SET banned = true WHERE id = :id").param("id", anna).update();
+        JsonNode u = json.readTree(call("/api/service/users?sub=" + anna, mediaToken).getContentAsString()).get("users").get(0);
+        assertThat(u.get("banned").asBoolean()).isTrue();
+        assertThat(u.get("access").asBoolean()).isFalse();
+        assertThat(json.readTree(call("/api/service/users", mediaToken).getContentAsString()).get("users")).isEmpty();
+    }
+
+    @Test
+    void theUserLookupIsLimitedAndNeedsAServiceToken() throws Exception {
+        StringBuilder q = new StringBuilder("?");
+        for (int i = 0; i < 101; i++) {
+            q.append("sub=").append(UUID.randomUUID()).append('&');
+        }
+        assertThat(call("/api/service/users" + q, mediaToken).getStatus()).isEqualTo(400);
+        assertThat(call("/api/service/users?sub=not-a-uuid", mediaToken).getStatus()).isEqualTo(400);
+        assertThat(call("/api/service/users", null).getStatus()).isEqualTo(401);
+    }
 }

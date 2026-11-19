@@ -66,6 +66,18 @@ public class AccountRepository {
         return findContact("u.id = :v", id);
     }
 
+    /** Alle Konten (für die Dienst-Schnittstelle: Liste der Nutzer mit Zugang zu einem Dienst). */
+    public java.util.List<AccountContact> findAllContacts() {
+        return jdbc.sql("""
+                        SELECT u.id, u.username, p.email, u.language, p.email_verified, u.banned
+                        FROM users u JOIN user_pii p ON p.user_id = u.id ORDER BY u.username
+                        """)
+                .query((rs, n) -> new AccountContact(rs.getObject("id", UUID.class), rs.getString("username"),
+                        rs.getString("email"), rs.getString("language"), rs.getBoolean("email_verified"),
+                        rs.getBoolean("banned")))
+                .list();
+    }
+
     private Optional<AccountContact> findContact(String where, Object value) {
         return jdbc.sql("""
                         SELECT u.id, u.username, p.email, u.language, p.email_verified, u.banned

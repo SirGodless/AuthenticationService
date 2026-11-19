@@ -22,7 +22,8 @@ public class SessionService {
 
     public static final String COOKIE_NAME = "__Host-sid";
 
-    public record SessionInfo(UUID userId, String username, boolean pending, boolean remember, Instant createdAt,
+    /** sid: öffentliche Kennung der Sitzung (steht im ID-Token und im Logout-Token, ist nicht das Cookie). */
+    public record SessionInfo(UUID userId, UUID sid, String username, boolean pending, boolean remember, Instant createdAt,
                               Instant expiresAt) {
     }
 
@@ -61,12 +62,12 @@ public class SessionService {
             return Optional.empty();
         }
         return jdbc.sql("""
-                        SELECT s.user_id, u.username, s.second_factor_pending, s.remember, s.created_at, s.expires_at
+                        SELECT s.user_id, s.sid, u.username, s.second_factor_pending, s.remember, s.created_at, s.expires_at
                         FROM login_sessions s JOIN users u ON u.id = s.user_id
                         WHERE s.id_hash = :id AND s.expires_at > now() AND NOT u.banned
                         """)
                 .param("id", Tokens.sha256Hex(token))
-                .query((rs, n) -> new SessionInfo(rs.getObject("user_id", UUID.class), rs.getString("username"),
+                .query((rs, n) -> new SessionInfo(rs.getObject("user_id", UUID.class), rs.getObject("sid", UUID.class), rs.getString("username"),
                         rs.getBoolean("second_factor_pending"), rs.getBoolean("remember"),
                         rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("expires_at").toInstant()))
                 .optional();

@@ -96,7 +96,7 @@ public class ServiceRegistrationService {
         redirectUris.stream().map(ServiceRegistrationService::cleanRedirectUri).forEach(client::redirectUri);
         clients.save(client.build());
 
-        ServiceInfo service = new ServiceInfo(key, displayName, key, permission, "new_tab", null, "", null, null, null, false);
+        ServiceInfo service = new ServiceInfo(key, displayName, key, permission, "new_tab", null, "", null, null, null, false, null);
         services.insert(service);
         return new RegisteredService(service, secret);
     }

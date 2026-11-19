@@ -26,7 +26,10 @@ class OidcAuthorizationServerConfig {
                                                        ServicePermissionFilter permissionFilter) throws Exception {
         http.oauth2AuthorizationServer(server -> {
             http.securityMatcher(server.getEndpointsMatcher());
-            server.oidc(Customizer.withDefaults());   // OIDC ist standardmäßig aus und muss eingeschaltet werden
+            // OIDC ist standardmäßig aus und muss eingeschaltet werden. Die Discovery meldet zusätzlich Back-Channel-Logout.
+            server.oidc(oidc -> oidc.providerConfigurationEndpoint(pc -> pc.providerConfigurationCustomizer(builder -> builder
+                    .claim("backchannel_logout_supported", true)
+                    .claim("backchannel_logout_session_supported", true))));
         });
         http
                 .securityContext(c -> c.securityContextRepository(contexts))

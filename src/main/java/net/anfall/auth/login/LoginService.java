@@ -8,6 +8,7 @@ import net.anfall.auth.account.LoginAccount;
 import net.anfall.auth.audit.AuditLog;
 import net.anfall.auth.config.AppProperties;
 import net.anfall.auth.login.session.SessionService;
+import net.anfall.auth.oidc.BackchannelLogoutService;
 import net.anfall.auth.password.PasswordService;
 import net.anfall.auth.ratelimit.Throttle;
 import net.anfall.auth.web.ApiException;
@@ -30,15 +31,17 @@ public class LoginService {
     private final Throttle throttle;
     private final AuditLog audit;
     private final AppProperties.Limits limits;
+    private final BackchannelLogoutService backchannel;
 
     public LoginService(AccountRepository accounts, PasswordService passwords, SessionService sessions,
-                        Throttle throttle, AuditLog audit, AppProperties props) {
+                        Throttle throttle, AuditLog audit, AppProperties props, BackchannelLogoutService backchannel) {
         this.accounts = accounts;
         this.passwords = passwords;
         this.sessions = sessions;
         this.throttle = throttle;
         this.audit = audit;
         this.limits = props.limits();
+        this.backchannel = backchannel;
     }
 
     public LoginResult login(String identifier, String password, boolean remember, String ip) {
@@ -87,7 +90,9 @@ public class LoginService {
         return new LoginResult(false, session.cookie());
     }
 
+    /** Abmelden im Hub meldet auch bei allen Diensten ab, die aus dieser Sitzung angemeldet wurden. */
     public void logout(String token, UUID userId, String ip) {
+        sessions.find(token).ifPresent(info -> backchannel.endSession(userId, info.sid()));
         sessions.revoke(token);
         audit.record(userId, userId, "logout", Map.of(), ip);
     }

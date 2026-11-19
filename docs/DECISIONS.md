@@ -1,6 +1,6 @@
 # Entscheidungen und Annahmen (Inhaltsverzeichnis)
 
-Stand: nach Etappe 7 und dem Zusatz "Dienste anbinden" (18.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
+Stand: nach Etappe 8 (gemeinsames Abmelden, Einbetten, Nutzerabfrage, 19.11.2026). Die Einzelheiten stehen nach Fachthema in `docs/decisions/`.
 Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahme (wartet auf Bestätigung), **[U]** nicht oder nicht ganz verifiziert.
 
 ## Themen
@@ -16,6 +16,7 @@ Kennzeichnung wie in `CLAUDE.md`: **[E]** von Joshua entschieden, **[A]** Annahm
 | [admin-dashboard.md](decisions/admin-dashboard.md) | Admin-Schnittstelle und -Oberfläche, Pflicht-2FA, Passwort-Reset erzwingen |
 | [two-factor-settings.md](decisions/two-factor-settings.md) | 2FA einrichten, Codes erneuern, abschalten |
 | [service-integration.md](decisions/service-integration.md) | Dienste im Dashboard anlegen, Dienst-Schnittstelle (Rechte abfragen, Farbe und Status melden), Namensraum der Rechte |
+| [single-logout-and-embedding.md](decisions/single-logout-and-embedding.md) | Gemeinsames Abmelden (Back-Channel-Logout), Einbetten von Diensten im Hub, Nutzerabfrage für Dienste |
 | [security-and-delivery.md](decisions/security-and-delivery.md) | Sicherheits-Header, CORS, Single Sign-on, Caddy-Block, Backup, feste Versionen, Darstellung als Kontoeinstellung |
 | [hub-and-services.md](decisions/hub-and-services.md) | Gestaltung "Raster", Hub und Seitenmenü, Akzentfarbe pro Dienst, Statusanzeige, Profilseite |
 | [invite-links.md](decisions/invite-links.md) | Einladungslinks, Registrierung, Gültigkeit, Prüfung des Erstellers, IP-Sperre |

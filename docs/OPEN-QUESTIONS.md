@@ -73,7 +73,13 @@ Stand: Etappe 7 (18.11.2026). Alle sieben Etappen sind gebaut.
    - `/api/admin/overview` verlangt keine 2FA (nur Übersicht, damit die Seite den Hinweis zeigen kann).
    - Passwort-Reset erzwingen nur bei bestätigter E-Mail.
    - Admin-Seiten laufen unter derselben Adresse wie die API (`anfall.net/admin`), Rückfragen mit Browser-Dialogen bis zum Design (Etappe 6).
-2. **Zeitzone für "0 Uhr" beim Backup:** Umgesetzt mit Europe/Berlin (`BACKUP_TZ` in `.env`). Sag Bescheid, wenn es UTC sein soll.
+2. **Annahmen aus Etappe 8** (Einzelheiten in `decisions/single-logout-and-embedding.md`):
+   - Abmelden im Hub beendet nur die Dienst-Sitzungen **dieser** Hub-Sitzung (nicht die anderer Geräte). Bann und Resets beenden alle.
+   - Der Dienst erkennt den Rahmen am Header `Sec-Fetch-Dest: iframe`. Eingebettete Dienste müssen unter einer Subdomain von `anfall.net` laufen.
+   - Die Nutzerabfrage liefert auch die E-Mail-Adresse und kennt Nutzer ohne Zugang, wenn der Dienst ihre UUID nennt.
+   - Der Username dient als Anzeigename in Diensten. Ein eigener Anzeigename im Hub ist offen.
+   - **Spezifikation Back-Channel-Logout** war nicht abrufbar, bitte vor dem Einsatz gegenlesen (nicht verifiziert).
+3. **Zeitzone für "0 Uhr" beim Backup:** Umgesetzt mit Europe/Berlin (`BACKUP_TZ` in `.env`). Sag Bescheid, wenn es UTC sein soll.
 
 ## Nicht verifiziert
 

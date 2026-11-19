@@ -103,4 +103,34 @@ class ServiceAdminApiTest extends AdminTestBase {
         assertThat(after.get("accentLocked").asBoolean()).isTrue();
         assertThat(after.get("reportedAccentColor").asString()).isEqualTo("#22aa55"); // die gemeldete Farbe bleibt erhalten
     }
+
+    @Test
+    void openModeAndLogoutAddressAreSetAndValidated() throws Exception {
+        vault();
+        Browser admin = loggedInAdmin("joshua").browser();
+        Map<String, Object> m = update("Vaultwarden", "");
+        m.put("openMode", "embedded");
+        m.put("backchannelLogoutUri", "https://vault.example/auth/backchannel-logout");
+        assertThat(admin.patch("/api/admin/services/vault", m).ok()).isTrue();
+        JsonNode v = json.readTree(admin.get("/api/admin/services").body()).get(0);
+        assertThat(v.get("openMode").asString()).isEqualTo("embedded");
+        assertThat(v.get("backchannelLogoutUri").asString()).isEqualTo("https://vault.example/auth/backchannel-logout");
+
+        // ohne Angabe bleibt der Öffnungsmodus, die Logout-Adresse ist wie die anderen Adressen "leer = nicht gesetzt"
+        assertThat(admin.patch("/api/admin/services/vault", update("Vaultwarden", "")).ok()).isTrue();
+        v = json.readTree(admin.get("/api/admin/services").body()).get(0);
+        assertThat(v.get("openMode").asString()).isEqualTo("embedded");
+        assertThat(v.get("backchannelLogoutUri").isNull()).isTrue();
+
+        Map<String, Object> bad = update("Vaultwarden", "");
+        bad.put("openMode", "popup");
+        assertThat(admin.patch("/api/admin/services/vault", bad).body()).contains("service_open_mode_invalid");
+        bad = update("Vaultwarden", "");
+        bad.put("backchannelLogoutUri", "ftp://vault.example/x");
+        assertThat(admin.patch("/api/admin/services/vault", bad).body()).contains("service_logout_url_invalid");
+        bad = update("Vaultwarden", "");
+        bad.put("openMode", "embedded");
+        bad.put("url", "");
+        assertThat(admin.patch("/api/admin/services/vault", bad).body()).contains("service_embedded_needs_url");
+    }
 }

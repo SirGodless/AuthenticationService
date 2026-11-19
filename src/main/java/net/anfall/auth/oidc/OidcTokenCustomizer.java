@@ -73,6 +73,8 @@ class OidcTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext> {
                 audit.record(userId, userId, "oidc.login", Map.of("service", service.key()), null);
             }
         } else if (ID_TOKEN.equals(tokenType) && account != null) {
+            // Kennung der Hub-Sitzung: Damit weiß der Dienst, welche seiner Sitzungen beim Abmelden endet
+            OidcSecurityContextRepository.sid(principal.getAuthorities()).ifPresent(sid -> context.getClaims().claim("sid", sid));
             if (context.getAuthorizedScopes().contains(OidcScopes.PROFILE)) {
                 context.getClaims().claim("preferred_username", account.username());
                 context.getClaims().claim("locale", account.language());

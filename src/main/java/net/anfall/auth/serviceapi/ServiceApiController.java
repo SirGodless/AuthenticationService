@@ -52,6 +52,7 @@ class ServiceApiController {
     private static final int DEFAULT_TTL = 180;
     private static final int MIN_TTL = 30;
     private static final int MAX_TTL = 900;
+    private static final int MAX_LOOKUP = 100;
 
     private final ServiceCaller caller;
     private final ServiceRepository services;
@@ -110,6 +111,47 @@ class ServiceApiController {
             }
         }
         return ApiResponses.json(Map.of("sub", userId.toString(), "access", access, "permissions", list));
+    }
+
+    /**
+     * Profile von Nutzern. Mit wiederholtem Parameter sub (höchstens 100) die genannten Nutzer, ohne sub alle Nutzer mit
+     * Zugang zu diesem Dienst. Der Dienst speichert nur die UUID und holt Namen und Adresse bei Bedarf hier ab.
+     */
+    @GetMapping("/users")
+    ResponseEntity<Object> users(@AuthenticationPrincipal Jwt jwt, @RequestParam(name = "sub", required = false) List<String> subs) {
+        ServiceInfo service = caller.require(jwt);
+        List<Map<String, Object>> list = new ArrayList<>();
+        if (subs == null || subs.isEmpty()) {
+            for (AccountContact c : accounts.findAllContacts()) {
+                if (hasAccess(service, c)) {
+                    list.add(profile(c, true));
+                }
+            }
+        } else {
+            if (subs.size() > MAX_LOOKUP) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "too_many_subs");
+            }
+            for (String sub : subs.stream().distinct().toList()) {
+                accounts.findContactById(parse(sub)).ifPresent(c -> list.add(profile(c, hasAccess(service, c))));
+            }
+        }
+        return ApiResponses.json(Map.of("users", list));
+    }
+
+    private boolean hasAccess(ServiceInfo service, AccountContact c) {
+        return !c.banned() && permissions.has(c.id(), service.requiredPermission());
+    }
+
+    private static Map<String, Object> profile(AccountContact c, boolean access) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("sub", c.id().toString());
+        p.put("username", c.username());
+        p.put("email", c.email());
+        p.put("emailVerified", c.emailVerified());
+        p.put("locale", c.language());
+        p.put("banned", c.banned());
+        p.put("access", access);
+        return p;
     }
 
     @GetMapping("/self")

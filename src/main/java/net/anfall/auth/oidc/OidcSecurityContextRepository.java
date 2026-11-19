@@ -28,6 +28,8 @@ import org.springframework.stereotype.Component;
 public class OidcSecurityContextRepository implements SecurityContextRepository {
 
     static final String SSO_END_PREFIX = "SSO_END_";
+    /** Kennung der Hub-Sitzung, aus der die Anmeldung beim Dienst stammt (SID_&lt;uuid&gt;). Wird mit der Autorisierung gespeichert. */
+    static final String SID_PREFIX = "SID_";
 
     private final SessionService sessions;
 
@@ -44,6 +46,7 @@ public class OidcSecurityContextRepository implements SecurityContextRepository 
             // Daraus macht der Provider den Claim auth_time (Zeitpunkt der Anmeldung) im ID-Token
             authorities.add(FactorGrantedAuthority.withAuthority(FactorGrantedAuthority.PASSWORD_AUTHORITY)
                     .issuedAt(info.createdAt()).build());
+            authorities.add(new SimpleGrantedAuthority(SID_PREFIX + info.sid()));
             if (!info.remember()) {
                 authorities.add(new SimpleGrantedAuthority(SSO_END_PREFIX + info.expiresAt().getEpochSecond()));
             }
@@ -57,6 +60,12 @@ public class OidcSecurityContextRepository implements SecurityContextRepository 
     static java.util.Optional<Instant> ssoEnd(java.util.Collection<? extends GrantedAuthority> authorities) {
         return authorities.stream().map(GrantedAuthority::getAuthority).filter(a -> a.startsWith(SSO_END_PREFIX))
                 .map(a -> Instant.ofEpochSecond(Long.parseLong(a.substring(SSO_END_PREFIX.length())))).findFirst();
+    }
+
+    /** Kennung der Hub-Sitzung aus den Rechten lesen. */
+    static java.util.Optional<String> sid(java.util.Collection<? extends GrantedAuthority> authorities) {
+        return authorities.stream().map(GrantedAuthority::getAuthority).filter(a -> a.startsWith(SID_PREFIX))
+                .map(a -> a.substring(SID_PREFIX.length())).findFirst();
     }
 
     @Override

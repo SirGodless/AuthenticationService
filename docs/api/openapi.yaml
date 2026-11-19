@@ -20,6 +20,7 @@ servers:
 tags:
   - name: Token
   - name: Rechte
+  - name: Nutzer
   - name: Dienst
 paths:
   /oauth2/token:
@@ -115,6 +116,44 @@ paths:
           description: "`user_unknown`: Diesen Nutzer gibt es nicht."
           content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+  /api/service/users:
+    get:
+      tags: [Nutzer]
+      operationId: users
+      summary: Profile von Nutzern (Name, E-Mail, Sprache)
+      description: |
+        Ein Dienst speichert von einem Nutzer nur die UUID (`sub`). Name, E-Mail und Sprache verwaltet der Hub, der Dienst
+        fragt sie hier bei Bedarf ab (kurz zwischenspeichern, nicht dauerhaft speichern).
+
+        **Ohne `sub`:** alle Nutzer mit Zugang zum Dienst (nicht gesperrt, Recht `service.<key>` vorhanden), nach Username sortiert.
+        **Mit `sub`** (mehrfach, höchstens 100): genau diese Nutzer, auch wenn sie keinen Zugang mehr haben oder gesperrt sind
+        (`access` ist dann false). Unbekannte UUIDs fehlen in der Antwort.
+      security:
+        - serviceToken: []
+      parameters:
+        - name: sub
+          in: query
+          required: false
+          explode: true
+          description: Kennung eines Nutzers. Mehrfach angebbar, höchstens 100.
+          schema: { type: array, maxItems: 100, items: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Antwort.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Users" }
+              examples:
+                einNutzer:
+                  value:
+                    users:
+                      - { sub: 3f0c1d2e-7a55-4a3e-9d0b-0f6c1b7f1a11, username: anna, email: anna@example.com, emailVerified: true, locale: de, banned: false, access: true }
+        "400":
+          description: "`sub_invalid` (keine UUID) oder `too_many_subs` (mehr als 100)."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /api/service/self:
     get:
       tags: [Dienst]
@@ -204,6 +243,24 @@ components:
         permissions:
           type: array
           items: { $ref: "#/components/schemas/Permission" }
+    Users:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items: { $ref: "#/components/schemas/UserProfile" }
+    UserProfile:
+      type: object
+      required: [sub, username, emailVerified, banned, access]
+      properties:
+        sub: { type: string, format: uuid }
+        username: { type: string, description: "Username (Kleinbuchstaben). Einen eigenen Anzeigenamen gibt es noch nicht." }
+        email: { type: string, description: "E-Mail-Adresse. Nur verwenden, wenn emailVerified wahr ist." }
+        emailVerified: { type: boolean }
+        locale: { type: string, enum: [en, de], description: Sprache des Kontos }
+        banned: { type: boolean }
+        access: { type: boolean, description: "Darf der Nutzer diesen Dienst nutzen (Recht vorhanden und nicht gesperrt)?" }
     Permission:
       type: object
       required: [key, type]

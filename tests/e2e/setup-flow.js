@@ -473,6 +473,32 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
 
   await p3.goto(`${base}/`); await p3.waitForSelector('#sidebar .me span');
 
+  // fetch im Browser: Playwrights eigener Request-Client kennt die Host-Zuordnung für auth.test nicht
+  const get = (u) => p3.evaluate(async (url) => { const r = await fetch(url); return { s: r.status, h: Object.fromEntries(r.headers) }; }, u);
+  // ---------- Eingebetteter Dienst (Öffnungsmodus embedded) ----------
+  sql("UPDATE services SET open_mode = 'embedded' WHERE key = 'e2e'");
+  await p3.route('https://dienst.example/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p id="in-frame">eingebettet</p>' }));
+  await p3.goto(`${base}/`); await p3.waitForSelector('#services tr');
+  const sideHref = await p3.locator('#sidebar a.service').first().evaluate((el) => ({ href: el.getAttribute('href'), target: el.getAttribute('target') }));
+  const rowHref = await p3.locator('#services a.btn.svc').evaluate((el) => ({ href: el.getAttribute('href'), target: el.getAttribute('target') }));
+  ok(sideHref.href === '/app/e2e' && !sideHref.target && rowHref.href === '/app/e2e' && !rowHref.target, 'Einbetten: Seitenmenü und Knopf führen zu /app/e2e statt in einen neuen Tab');
+  await p3.click('#sidebar a.service');
+  await p3.waitForURL(`${base}/app/e2e`);
+  await p3.waitForSelector('iframe.embed-frame');
+  const fr = await p3.locator('iframe.embed-frame').evaluate((el) => ({ src: el.getAttribute('src'), sandbox: el.getAttribute('sandbox'), title: el.title }));
+  ok(fr.src === 'https://dienst.example/' && fr.title === 'E2E Dienst' && fr.sandbox.includes('allow-same-origin') && !fr.sandbox.includes('allow-top-navigation'),
+    'Einbetten: Rahmen mit Adresse des Dienstes, sandbox ohne allow-top-navigation');
+  await p3.frameLocator('iframe.embed-frame').locator('#in-frame').waitFor();
+  ok(true, 'Einbetten: Inhalt des Dienstes erscheint im Rahmen');
+  const eh = (await get(`${base}/app/e2e`)).h;
+  ok((eh['content-security-policy'] || '').includes('frame-src https:') && (eh['content-security-policy'] || '').includes("frame-ancestors 'none'") && eh['x-frame-options'] === 'DENY',
+    'Einbetten: Seite erlaubt https-Rahmen, ist selbst aber nicht einbettbar');
+  sql("UPDATE services SET open_mode = 'new_tab' WHERE key = 'e2e'");
+  await p3.goto(`${base}/app/e2e`);
+  await p3.waitForURL(`${base}/`);
+  ok(true, 'Einbetten: ein Dienst im Modus neuer Tab wird nicht geladen (zurück zur Startseite)');
+  await p3.unroute('https://dienst.example/**');
+
   // ---------- Abmelden ----------
   await p3.click('#sidebar .me button');
   await p3.waitForURL(`${base}/login`);
@@ -480,10 +506,8 @@ for (const k of Object.keys(process.env)) if (/^(https?|all|no)_proxy$/i.test(k)
   ok(true, 'Abmelden: Sitzung beendet, die Startseite führt zum Login');
 
   // ---------- Setup-Link ist tot, Header ----------
-  // fetch im Browser: Playwrights eigener Request-Client kennt die Host-Zuordnung für auth.test nicht
   await page.goto(`${base}/login`);
   await page.waitForSelector('#step-password:not([hidden])');
-  const get = (u) => page.evaluate(async (url) => { const r = await fetch(url); return { s: r.status, h: Object.fromEntries(r.headers) }; }, u);
   ok((await get(`${base}/api/setup/${token}`)).s === 404, 'Setup-Link nach dem Admin tot');
   const h = (await get(`${base}/login`)).h;
   ok((h['content-security-policy'] || '').includes("frame-ancestors 'none'") && h['cache-control'] === 'no-store', 'Login-Seite: frame-ancestors none, no-store');

@@ -23,7 +23,7 @@ public class ServiceAdminService {
 
     /** Eingaben des Dashboards. Leere Texte bei Adressen und Farbe bedeuten "nicht gesetzt". */
     public record Update(String displayName, String description, String url, String accentColor, Boolean accentLocked,
-                         String healthUrl) {
+                         String healthUrl, String openMode, String backchannelLogoutUri) {
     }
 
     /** Eingaben zum Anlegen. Alles außer Schlüssel, Name und Rücksprung-Adressen ist optional. */
@@ -65,7 +65,7 @@ public class ServiceAdminService {
         }
         var registered = registration.register(c.key() == null ? null : c.key().trim(), name, c.redirectUris());
         String key = registered.service().key();
-        services.updateDisplay(key, name, description, url, color, false, healthUrl);
+        services.updateDisplay(key, name, description, url, color, false, healthUrl, "new_tab", null);
         audit.record(actor, null, "service.created", Map.of("service", key), ip);
         ServiceInfo info = services.findByKey(key).orElseThrow();
         return new Created(ServiceAdminView.of(info, registration.redirectUrisOf(key)), registered.clientSecret());
@@ -99,9 +99,19 @@ public class ServiceAdminService {
         String healthUrl = cleanUrl(u.healthUrl(), "service_health_url_invalid");
         String color = cleanColor(u.accentColor());
         boolean locked = Boolean.TRUE.equals(u.accentLocked());
-        services.updateDisplay(key, name, description, url, color, locked, healthUrl);
+        String openMode = u.openMode() == null || u.openMode().isBlank() ? old.openMode() : u.openMode();
+        if (!"new_tab".equals(openMode) && !"embedded".equals(openMode)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "service_open_mode_invalid");
+        }
+        String logoutUri = cleanUrl(u.backchannelLogoutUri(), "service_logout_url_invalid");
+        // Einbetten braucht eine Adresse zum Öffnen, sonst gäbe es nichts zu laden
+        if ("embedded".equals(openMode) && url == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "service_embedded_needs_url");
+        }
+        services.updateDisplay(key, name, description, url, color, locked, healthUrl, openMode, logoutUri);
         audit.record(actor, null, "service.updated", Map.of("service", key, "accent_color", String.valueOf(color), "accent_locked", locked,
-                "url_changed", !java.util.Objects.equals(old.url(), url), "health_url_changed", !java.util.Objects.equals(old.healthUrl(), healthUrl)), ip);
+                "url_changed", !java.util.Objects.equals(old.url(), url), "health_url_changed", !java.util.Objects.equals(old.healthUrl(), healthUrl),
+                "open_mode", openMode, "logout_url_changed", !java.util.Objects.equals(old.backchannelLogoutUri(), logoutUri)), ip);
     }
 
     /** Nur http und https mit Host, höchstens 300 Zeichen. Leer heißt nicht gesetzt. */

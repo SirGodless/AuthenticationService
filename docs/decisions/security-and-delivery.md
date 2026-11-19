@@ -4,14 +4,14 @@ Kennzeichnung: **[E]** von Joshua entschieden. **[A]** Annahme, wartet auf Best�
 
 ## Entscheidungen von Joshua (18.11.2026)
 
-- **[E]** Der Hub darf vorerst unter `auth.anfall.net` laufen. `anfall.net` und `www.anfall.net` leiten dorthin um. Damit entfällt CORS ganz: Seiten und API haben dieselbe Adresse, das Sitzungs-Cookie ist host-only für `auth.anfall.net`.
+- **[E]** Hub, Login und OIDC-Provider laufen auf derselben Adresse `anfall.net` (Joshua, 19.11.2026, vorher: Hub auf `auth.anfall.net`). `www.anfall.net` leitet dorthin um. Damit entfällt CORS ganz: Seiten und API haben dieselbe Adresse, das Sitzungs-Cookie ist host-only für `anfall.net`. Auf `anfall.net` läuft sonst nichts und es ist nichts Öffentliches geplant.
 - **[E]** Die Darstellung (hell, dunkel, wie das Gerät) ist eine Einstellung im Konto (Profilseite), kein Umschalter auf jeder Seite.
 - **[E]** Die vom Dienst gemeldete Farbe überschreibt die im Hub eingestellte, außer im Hub ist festgehalten, dass sie es nicht soll (Kästchen). Siehe `hub-and-services.md`.
 - **[E]** Die Dienste sollen weiter direkt aufrufbar sein, und wer im Hub angemeldet ist, soll ohne erneute Anmeldung in den Diensten sein (wie bei Google). Siehe unten.
 
 ## Einmal anmelden, überall drin (Single Sign-on)
 
-Das gibt der OIDC-Provider schon her, es war nur nicht als Ziel festgehalten. Es gibt **eine** Anmeldesitzung beim Provider (Cookie `__Host-sid` auf `auth.anfall.net`). Hub und Dienste nutzen dieselbe:
+Das gibt der OIDC-Provider schon her, es war nur nicht als Ziel festgehalten. Es gibt **eine** Anmeldesitzung beim Provider (Cookie `__Host-sid` auf `anfall.net`). Hub und Dienste nutzen dieselbe:
 
 - Ruft jemand einen Dienst direkt auf, schickt dieser per OIDC zu `/oauth2/authorize`. Ohne Sitzung geht es zur Login-Seite mit Rücksprung, mit Sitzung sofort zurück zum Dienst mit einem Code. Der Hub ist nie nötig.
 - Für jeden Dienst wird das Recht einzeln geprüft: Angemeldet heißt nicht berechtigt (Seite "Kein Zugang"). Ein gebannter User bekommt von keinem Dienst einen Code.
@@ -23,7 +23,7 @@ Das gibt der OIDC-Provider schon her, es war nur nicht als Ziel festgehalten. Es
 ## Sicherheits-Header und CORS (Abschnitt 10, geprüft)
 
 - **Seiten der UI** (nginx): CSP mit `default-src 'none'` und `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`. Im Browser-Test für alle 11 Seitenarten geprüft (Hub, Login, Passwort vergessen, Kein Zugang, Dashboard, Profil, 2FA, Links, Registrierung, Reset, Bestätigung). Keine Konsolenfehler oder CSP-Verstöße.
-- **HSTS** setzt Caddy (`deploy/Caddyfile.snippet`, ein Jahr, `includeSubDomains`). Der Browser-Test läuft durch einen Test-Caddy, der aus genau diesem Block gebaut wird.
+- **HSTS** setzt Caddy (`deploy/Caddyfile.snippet`, ein Jahr, **ohne** `includeSubDomains`: Die Adresse ist die Hauptdomain, und die Option würde sonst für jede Subdomain gelten, auch für eine, die noch ohne HTTPS läuft). Der Browser-Test läuft durch einen Test-Caddy, der aus genau diesem Block gebaut wird.
 - **API** (Backend): `nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store` (Test `ResponseHeadersTest`).
 - **CORS:** Nirgends freigegeben. Weder eine Anfrage mit fremdem Origin noch ein Preflight bekommt `Access-Control-Allow-Origin` (getestet für API, Admin, Registrierung, JWKS und Discovery). Das ist gewollt, weil Seiten und API dieselbe Adresse haben. Wird der Hub später unter einer anderen Adresse betrieben, kommt CORS für genau diese Adresse dazu (siehe `hub-ui-authentication.md`).
 - **Cookies:** `__Host-sid` mit `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/` und ohne `Domain` (host-only), CSRF-Cookie `Secure`, `SameSite=Lax`. Im echten Browser und im Test geprüft.
@@ -32,7 +32,7 @@ Das gibt der OIDC-Provider schon her, es war nur nicht als Ziel festgehalten. Es
 
 ## Caddy (`deploy/Caddyfile.snippet`)
 
-Zwei Blöcke: `auth.anfall.net` (Backend-Pfade an `auth-backend:8080`, alles andere an `userhub-ui:8080`, HSTS, Kompression) und `anfall.net, www.anfall.net` (dauerhafte Umleitung auf `auth.anfall.net`). Mit `caddy validate` geprüft, und der Browser-Test nutzt den echten Block (Host und Zertifikat ersetzt). Der Verwaltungs-Port 8081 wird nicht weitergegeben. Caddy setzt `X-Forwarded-For` auf die echte Adresse, das Backend glaubt dem nur von `TRUSTED_PROXIES`.
+Zwei Blöcke: `anfall.net` (Backend-Pfade an `auth-backend:8080`, alles andere an `userhub-ui:8080`, HSTS, Kompression) und `www.anfall.net` (dauerhafte Umleitung auf `anfall.net`). Mit `caddy validate` geprüft, und der Browser-Test nutzt den echten Block (Host und Zertifikat ersetzt). Der Verwaltungs-Port 8081 wird nicht weitergegeben. Caddy setzt `X-Forwarded-For` auf die echte Adresse, das Backend glaubt dem nur von `TRUSTED_PROXIES`.
 
 ## Backup (**[E]** Konzept, Umsetzung **[A]**)
 

@@ -159,7 +159,7 @@ set_final() {   # set_final NAME WERT: Der gewählte Wert gilt (er war in der Fr
   if [ "${OLD[$1]:-}" != "$2" ]; then CHANGED+=("$1"); fi
   NEW["$1"]="$2"
 }
-ask "  Adresse des Hubs (der Issuer, ändert sich nie wieder)" "${OPT_URL:-${OLD[PUBLIC_BASE_URL]:-https://auth.anfall.net}}"; URL="${REPLY%/}"
+ask "  Adresse des Hubs (der Issuer, ändert sich nie wieder)" "${OPT_URL:-${OLD[PUBLIC_BASE_URL]:-https://anfall.net}}"; URL="${REPLY%/}"
 [[ "$URL" =~ ^https://[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]] || die "Die Adresse muss mit https:// beginnen, einen Host haben und darf keinen Pfad und keinen Slash am Ende haben: $URL"
 host="${URL#https://}"
 ask "  Domain für Mails (Absender, Mailserver)" "${OPT_MAIL_DOMAIN:-${OLD[MAIL_DOMAIN]:-${host#auth.}}}"; MAIL_DOMAIN="$REPLY"

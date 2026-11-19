@@ -31,7 +31,7 @@ check "die drei Schlüssel sind verschieden" '[ "$(for k in TOTP_ENCRYPTION_KEY 
 check "DB_PASSWORD ist gesetzt und enthält keine Sonderzeichen" '[[ "$(val "$ENV" DB_PASSWORD)" =~ ^[A-Za-z0-9_-]{20,}$ ]]'
 check "kein Platzhalter bleibt übrig" '! grep -q "bitte-aendern" "$ENV"'
 check "Netzwerk und Adressbereich stammen aus dem gewählten Netzwerk" '[ "$(val "$ENV" CADDY_NETWORK)" = "$NET1" ] && [ "$(val "$ENV" TRUSTED_PROXIES)" = "10.231.0.0/24" ]'
-check "Adresse, Mail und Backup kommen aus den Vorschlägen" '[ "$(val "$ENV" PUBLIC_BASE_URL)" = "https://auth.anfall.net" ] && [ "$(val "$ENV" MAIL_FROM)" = "no-reply@anfall.net" ] && [ "$(val "$ENV" MAIL_HOSTNAME)" = "mail.anfall.net" ] && [ "$(val "$ENV" BACKUP_TZ)" = "Europe/Berlin" ]'
+check "Adresse, Mail und Backup kommen aus den Vorschlägen" '[ "$(val "$ENV" PUBLIC_BASE_URL)" = "https://anfall.net" ] && [ "$(val "$ENV" MAIL_FROM)" = "no-reply@anfall.net" ] && [ "$(val "$ENV" MAIL_HOSTNAME)" = "mail.anfall.net" ] && [ "$(val "$ENV" BACKUP_TZ)" = "Europe/Berlin" ]'
 check "Backup-Ordner wurde angelegt" '[ -d "$WORK/backups" ]'
 check "Die Schlüssel stehen nicht in der Ausgabe" '! grep -q "$(val "$ENV" TOTP_ENCRYPTION_KEY)" "$WORK/out.txt"'
 check "docker compose liest die Datei" 'docker compose --env-file "$ENV" config -q'

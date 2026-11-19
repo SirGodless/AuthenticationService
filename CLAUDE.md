@@ -53,9 +53,8 @@ Container:
 - [E] Joshua (12.11.2026): Der Stack bringt einen eigenen Mailserver mit (Container `auth-mail`). Ausgehend Port 25 wird auf dem Server freigegeben, die Einrichtung (Firewall, DNS, rDNS) steht in der README.md. Keine externen Mail-Dienste.
 - [E] Keine veröffentlichten Ports. Nur Caddy ist von außen erreichbar. [A] Das Netzwerk `caddy_net` und der Ablageort `/opt/containers/` stammen aus Joshuas Infrastruktur-Notizen und sind vor Verwendung zu bestätigen.
 - [E] Die beiden Repos liegen nebeneinander (`AuthenticationService/` und `UserHub/` im selben Ordner). Das `docker-compose.yml` liegt in `AuthenticationService` und baut die UI aus `../UserHub`. [U] Prüfe als ersten Schritt, ob die Cloud-Sitzung beide Repos so ablegt. Wenn nicht, melde es, statt eine Umgehung zu bauen.
-- [E] Hostnamen: Hub unter `anfall.net` und `www.anfall.net`, Auth unter `auth.anfall.net`. [A] `anfall.net` ist die Hauptadresse, `www` leitet dorthin um. Die Issuer-URL `https://auth.anfall.net` ist fest und darf sich nie ändern, weil sie in allen Clients hinterlegt ist.
-- [E] Joshua (18.11.2026): Der Hub darf vorerst unter `auth.anfall.net` laufen (`anfall.net` und `www.anfall.net` leiten dorthin um). Damit entfällt CORS.
-- [A] Die Login-Seite muss unter `auth.anfall.net` erscheinen. Caddy verteilt dort die Pfade: `/oauth2/*`, `/.well-known/*`, `/connect/*`, `/userinfo` und `/api/*` an das Backend, alles andere an den UI-Container.
+- [E] Hostnamen (Joshua, 19.11.2026): Hub, Login und OIDC-Provider laufen alle unter `anfall.net`, es gibt keinen eigenen Auth-Host. Auf `anfall.net` läuft sonst nichts und es ist auch nichts Öffentliches geplant. `www.anfall.net` leitet dorthin um. Die Issuer-URL `https://anfall.net` ist fest und darf sich nie ändern, weil sie in allen Clients hinterlegt ist. Seiten und API haben dieselbe Adresse, damit entfällt CORS.
+- [A] Die Login-Seite muss unter `anfall.net` erscheinen. Caddy verteilt dort die Pfade: `/oauth2/*`, `/.well-known/*`, `/connect/*`, `/userinfo` und `/api/*` an das Backend, alles andere an den UI-Container.
 - [E] Caddy: Du änderst die laufende Caddy-Konfiguration nicht. Du lieferst einen Block in `deploy/Caddyfile.snippet`, den Joshua selbst einträgt.
 - [E] Deployment: Joshua klont beide Repos in einen Ordner auf dem Server, führt `./setup.sh` aus (schreibt die `.env`, erzeugt die Schlüssel, wählt das Docker-Netzwerk von Caddy aus der Liste, Joshua 19.11.2026) und startet `docker compose up -d --build`. Schreibe dafür `docs/DEPLOY.md` in einfachen Schritten (Joshua kennt Konzepte, aber nicht jede Syntax auswendig).
 - [A] Container laufen als Nicht-Root-User, haben Healthchecks und feste Image-Versionen.
@@ -114,7 +113,7 @@ Sitzungen und Tokens
 - [E] Links werden nie gelöscht, nur deaktiviert. Gespeichert bleiben: Link-ID, Rolle, aufgelöste Rechte zum Zeitpunkt der Erstellung, was beim Einlösen vergeben wurde, Status mit Grund und `invited_by` am neuen User.
 - [E] Wird der Ersteller gebannt, werden seine offenen Links deaktiviert. Konten, die vorher über seine Links entstanden sind, bleiben bestehen und werden nicht gebannt.
 - [E] Ungültige, abgelaufene und benutzte Links zeigen dieselbe neutrale Fehlermeldung.
-- [A] Der Token ist zufällig (mindestens 256 Bit) und wird nur gehasht gespeichert. Registrierungsadresse: `https://auth.anfall.net/invite/<token>`. Ist beim Absenden der Username oder die E-Mail vergeben, gibt es einen Formularfehler und der Link wird nicht verbraucht.
+- [A] Der Token ist zufällig (mindestens 256 Bit) und wird nur gehasht gespeichert. Registrierungsadresse: `https://anfall.net/invite/<token>`. Ist beim Absenden der Username oder die E-Mail vergeben, gibt es einen Formularfehler und der Link wird nicht verbraucht.
 - [E] Sperre bei falschen Links: Wer mehr als 3-mal pro Stunde einen falschen Link öffnet, wird für einen Tag gesperrt. Gezählt werden nur Links, die es nie gab. Abgelaufene, benutzte oder deaktivierte Links zählen nicht (sonst sperrt sich ein Nutzer selbst). [A] Die Sperre gilt pro IP-Adresse (IPv6 pro /64) und nur für den Link-Endpunkt, nicht für den Login. Ein Admin kann sie aufheben. Die echte IP wird nur von Caddy übernommen (vertrauenswürdiger Proxy), sonst lässt sich die Sperre umgehen.
 - [A] Weitere Limits: Login 5 Fehlversuche pro Konto in 15 Minuten, dann 15 Minuten Pause. Gleiches für falsche TOTP-Codes. Passwort-Reset-Anfragen 3 pro Stunde je E-Mail und IP.
 
@@ -174,7 +173,7 @@ Dienste (Clients) und Hosts: [A] laut Joshuas Infrastruktur-Notizen, vor Verwend
 - [E] Die UI-Sprache ist pro Account einstellbar. Standard ist Englisch, als Alternative gibt es Deutsch. Alle Texte (UI, Fehlermeldungen, Mails) liegen in Sprachdateien (`en` und `de`), nichts steht fest im Code. Weitere Sprachen sollen später leicht ergänzbar sein.
 - [A] Die Sprache wird als Feld am Account gespeichert (`en` oder `de`) und in der Profilseite umgestellt. Mails gehen in der Sprache des Accounts. Vor dem Login (Login, Registrierung, Setup, Passwort-Reset) gibt es einen Sprachumschalter, Standard Englisch, die Wahl wird nur im Browser gemerkt. Bei der Registrierung wird die gewählte Sprache als Account-Sprache gespeichert, die Bestätigungsmail kommt in dieser Sprache. Beim Setup des ersten Admins gilt dasselbe.
 - [A] Keine externen Schriften oder CDNs (alles selbst hosten). Grundlegende Barrierefreiheit (Kontrast, Tastaturbedienung).
-- [A] Hub-UI an der API: Sitzungs-Cookie von `auth.anfall.net`, API-Aufrufe aus dem Hub mit CORS nur für `anfall.net` (Vorschlag und Begründung in `docs/decisions/hub-ui-authentication.md`, Joshua hat keine Variante gewählt und um eine Empfehlung gebeten).
+- [E] Hub-UI an der API: gleiche Adresse (`anfall.net`), Sitzungs-Cookie host-only, kein CORS (siehe `docs/decisions/hub-ui-authentication.md`, Entscheidung 19.11.2026).
 
 ## 9. Protokoll (Audit-Log)
 
@@ -188,7 +187,7 @@ Dienste (Clients) und Hosts: [A] laut Joshuas Infrastruktur-Notizen, vor Verwend
 Alles [A], Joshua bestätigt sie:
 
 - HTTPS nur über Caddy, Sicherheits-Header (HSTS, CSP, `frame-ancestors 'none'` auf Login und Admin).
-- Cookies `Secure`, `HttpOnly`, `SameSite=Lax`, host-only für `auth.anfall.net`. CSRF-Schutz bei Formularen. CORS nur für die nötigen Origins.
+- Cookies `Secure`, `HttpOnly`, `SameSite=Lax`, host-only für `anfall.net`. CSRF-Schutz bei Formularen. CORS nur für die nötigen Origins (aktuell keine nötig).
 - Keine Tokens in `localStorage`, falls vermeidbar.
 - Secrets nur über Umgebungsvariablen oder Docker-Secrets.
 - Abhängigkeiten auf feste Versionen, bekannte Schwachstellen vor dem Release prüfen.

@@ -2,7 +2,7 @@
 
 Alles läuft in einem Docker-Compose-Stack hinter deinem bestehenden Caddy. Die Schritte sind in der Reihenfolge, in der du sie machst. Ich ändere deinen Caddy nicht, du trägst den Block selbst ein.
 
-Voraussetzungen auf dem Server: Docker mit Compose, der bestehende Caddy, das Docker-Netzwerk `caddy_net`, DNS-Einträge für `auth.anfall.net`, `anfall.net` und `www.anfall.net` (A-Einträge auf den Server) und, für die Mails, die Einrichtung aus der `README.md` (Abschnitt "Mailserver": Port 25 ausgehend, rDNS, SPF, DKIM, DMARC).
+Voraussetzungen auf dem Server: Docker mit Compose, der bestehende Caddy, das Docker-Netzwerk `caddy_net`, DNS-Einträge für `anfall.net` und `www.anfall.net` (A-Einträge auf den Server) und, für die Mails, die Einrichtung aus der `README.md` (Abschnitt "Mailserver": Port 25 ausgehend, rDNS, SPF, DKIM, DMARC).
 
 ## 1. Repos klonen
 
@@ -26,7 +26,7 @@ Das Skript schreibt die `.env` für dich, erzeugt alle Schlüssel und wählt das
 Es fragt der Reihe nach (Enter nimmt jeweils den Vorschlag):
 
 1. **Docker-Netzwerk von Caddy:** eine Liste der vorhandenen Netzwerke mit Adressbereich und den Containern darin (so erkennst du das, in dem dein Caddy hängt). Du wählst per Nummer oder Name, oder legst ein neues an. Den Adressbereich trägt das Skript als `TRUSTED_PROXIES` ein (nur von dort glaubt das Backend den Angaben von Caddy zur echten IP der Besucher, sonst ließen sich IP-Sperren umgehen).
-2. **Adresse des Hubs** (Standard `https://auth.anfall.net`, ändert sich nie wieder, sie steht in allen Diensten) und die **Domain für Mails** (Standard `anfall.net`). Daraus entstehen Absender, Mailserver-Name und Name in der Authenticator-App.
+2. **Adresse des Hubs** (Standard `https://anfall.net`, ändert sich nie wieder, sie steht in allen Diensten) und die **Domain für Mails** (Standard `anfall.net`). Daraus entstehen Absender, Mailserver-Name und Name in der Authenticator-App.
 3. **Backup-Ordner** (Standard `./backups`). Das Skript legt ihn an und gibt ihn dem Benutzer 70, als der der Backup-Container läuft. Fehlen dafür die Rechte, sagt es dir den Befehl mit `sudo`.
 
 Außerdem erzeugt es `DB_PASSWORD`, `TOTP_ENCRYPTION_KEY`, `PASSWORD_PEPPER_KEY` und `OIDC_KEY_ENCRYPTION_KEY` (die drei Schlüssel garantiert verschieden), setzt die Datei auf "nur für dich lesbar" und prüft am Ende, dass Compose sie lesen kann. Die Schlüssel werden **nicht** ausgegeben (mit `--show-secrets` doch).
@@ -63,14 +63,14 @@ caddy validate --config /etc/caddy/Caddyfile
 caddy reload --config /etc/caddy/Caddyfile
 ```
 
-Der Block verteilt auf `auth.anfall.net` die Pfade `/oauth2/*`, `/.well-known/*`, `/connect/*`, `/userinfo` und `/api/*` an `auth-backend:8080` und alles andere an `userhub-ui:8080`, setzt HSTS und leitet `anfall.net` und `www.anfall.net` dauerhaft auf `https://auth.anfall.net` um. Der interne Port 8081 des Backends (Health) wird nicht weitergegeben. **Prüfen**, sobald Caddy läuft:
+Der Block verteilt auf `anfall.net` die Pfade `/oauth2/*`, `/.well-known/*`, `/connect/*`, `/userinfo` und `/api/*` an `auth-backend:8080` und alles andere an `userhub-ui:8080`, setzt HSTS (ohne `includeSubDomains`, weil `anfall.net` die Hauptdomain ist) und leitet `www.anfall.net` dauerhaft auf `https://anfall.net` um. Der interne Port 8081 des Backends (Health) wird nicht weitergegeben. **Prüfen**, sobald Caddy läuft:
 
 ```bash
-curl -s https://auth.anfall.net/.well-known/openid-configuration | head -c 300    # "issuer": "https://auth.anfall.net"
-curl -sI https://auth.anfall.net/login | grep -i -E "strict-transport|content-security|x-frame"
+curl -s https://anfall.net/.well-known/openid-configuration | head -c 300    # "issuer": "https://anfall.net"
+curl -sI https://anfall.net/login | grep -i -E "strict-transport|content-security|x-frame"
 ```
 
-Die Adresse `https://auth.anfall.net` ist der Issuer und darf sich nie ändern (sie steht in allen Diensten).
+Die Adresse `https://anfall.net` ist der Issuer und darf sich nie ändern (sie steht in allen Diensten).
 
 ## 6. Ersten Admin einrichten
 
@@ -84,7 +84,7 @@ Den Link im Browser öffnen (gilt eine Stunde, einmal). Dort Account, Passwort u
 
 ## 7. Erste Schritte im Dashboard
 
-Unter `https://auth.anfall.net/admin`:
+Unter `https://anfall.net/admin`:
 
 1. **Users:** Dir selbst die direkten Rechte `links.create` und `links.max_active` (z. B. 5) geben, damit du Einladungslinks erzeugen kannst (die Rolle Admin enthält sie nicht).
 2. **Settings:** Gültigkeit der Einladungslinks einstellen, falls die Standardwerte (7 Tage, mit Rechten 3 Tage, Maximum 30) nicht passen.
@@ -94,7 +94,7 @@ Unter `https://auth.anfall.net/admin`:
 
 ### Einmal anmelden, überall drin
 
-Der Hub und jeder Dienst teilen **eine** Anmeldung beim Provider (`auth.anfall.net`). Ist man dort angemeldet, bekommt jeder Dienst, für den man das Recht hat, beim Öffnen sofort einen Code, ohne neue Eingabe. Das gilt auch, wenn man einen Dienst direkt aufruft statt über den Hub: Der Dienst schickt zum Provider, ist man angemeldet, geht es sofort zurück (getestet in `SingleSignOnTest`). Ohne Anmeldung landet man auf der Login-Seite und danach wieder im Dienst. Voraussetzung ist, dass der Dienst per OIDC angebunden ist. Wie sich die echten Dienste dabei verhalten (Vaultwarden, Audiobookshelf, Pelican), testest du nach dem Deployment, das ging in der Entwicklung nicht.
+Der Hub und jeder Dienst teilen **eine** Anmeldung beim Provider (`anfall.net`). Ist man dort angemeldet, bekommt jeder Dienst, für den man das Recht hat, beim Öffnen sofort einen Code, ohne neue Eingabe. Das gilt auch, wenn man einen Dienst direkt aufruft statt über den Hub: Der Dienst schickt zum Provider, ist man angemeldet, geht es sofort zurück (getestet in `SingleSignOnTest`). Ohne Anmeldung landet man auf der Login-Seite und danach wieder im Dienst. Voraussetzung ist, dass der Dienst per OIDC angebunden ist. Wie sich die echten Dienste dabei verhalten (Vaultwarden, Audiobookshelf, Pelican), testest du nach dem Deployment, das ging in der Entwicklung nicht.
 
 ## 8. Mailserver einrichten
 

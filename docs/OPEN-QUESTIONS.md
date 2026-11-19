@@ -18,7 +18,7 @@ Stand: Etappe 7 (18.11.2026). Alle sieben Etappen sind gebaut.
 ## Erledigt (Antworten vom 18.11.2026)
 
 - **`offline_access`:** Freigegeben, Refresh-Tokens gibt es nur noch mit diesem Scope (`decisions/oidc-provider.md`). Dienste müssen den Scope anfordern, wenn sie eine längere Sitzung wollen.
-- **Hub-Adresse:** `auth.anfall.net` reicht. `anfall.net` und `www.anfall.net` leiten um, CORS wird nicht gebraucht.
+- **Hub-Adresse:** Hub, Login und OIDC laufen alle auf `anfall.net` (kein eigener Auth-Host, auf `anfall.net` läuft sonst nichts und es ist nichts Öffentliches geplant). `www` leitet um, CORS wird nicht gebraucht.
 - **Darstellung (hell, dunkel):** als Einstellung im Konto, nicht auf jeder Seite.
 - **Farbe von Diensten:** Eine vom Dienst gemeldete Farbe überschreibt die Hub-Farbe, außer ein Kästchen im Hub hält sie fest.
 - **Single Sign-on:** Wer angemeldet ist, kommt ohne neue Eingabe in jeden Dienst mit Recht. Dienste bleiben direkt aufrufbar. Umgesetzt und getestet am Provider.
@@ -45,7 +45,7 @@ Stand: Etappe 7 (18.11.2026). Alle sieben Etappen sind gebaut.
    - Das Backup läuft als eigener Container mit eigener Zeitplan-Schleife (nicht Cron). Im Backup liegen Dump, die beiden Schlüssel (TOTP, OIDC) und der DKIM-Schlüssel, nicht der Pepper. **Hinweis:** Dump und Schlüssel liegen damit zusammen, wer den Ordner lesen kann, kann TOTP-Geheimnisse entschlüsseln. Behandle `backups/` wie die `.env`.
    - Der Mailserver-Status im Hub ist eine Erreichbarkeitsprüfung, kein Zustelltest.
    - Vor dem Login (ohne Konto) gilt die Darstellung des Geräts, bis jemand sich auf diesem Browser angemeldet hat.
-   - `anfall.net` und `www.anfall.net` leiten dauerhaft (301) auf `auth.anfall.net` um.
+   - `www.anfall.net` leitet dauerhaft (301) auf `anfall.net` um. HSTS ohne `includeSubDomains`.
 
 00. **Annahmen aus Etappe 6 zur Bestätigung** (Einzelheiten in `decisions/hub-and-services.md`):
    - Schriftfarbe auf Dienstknöpfen wird automatisch Schwarz oder Weiß, ein offline markierter Dienst bleibt öffenbar (umrandeter Knopf).
@@ -72,7 +72,7 @@ Stand: Etappe 7 (18.11.2026). Alle sieben Etappen sind gebaut.
    - Jede 2FA-Änderung verlangt das Passwort und, falls schon eingerichtet, einen Code. Limit 5 Fehlversuche in 15 Minuten.
    - `/api/admin/overview` verlangt keine 2FA (nur Übersicht, damit die Seite den Hinweis zeigen kann).
    - Passwort-Reset erzwingen nur bei bestätigter E-Mail.
-   - Admin-Seiten laufen gleich-origin unter `auth.anfall.net/admin`, Rückfragen mit Browser-Dialogen bis zum Design (Etappe 6).
+   - Admin-Seiten laufen unter derselben Adresse wie die API (`anfall.net/admin`), Rückfragen mit Browser-Dialogen bis zum Design (Etappe 6).
 2. **Zeitzone für "0 Uhr" beim Backup:** Umgesetzt mit Europe/Berlin (`BACKUP_TZ` in `.env`). Sag Bescheid, wenn es UTC sein soll.
 
 ## Nicht verifiziert

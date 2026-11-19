@@ -6,7 +6,7 @@ Code: Paket `invite` (Backend), Seiten `/invite/<token>` und `/account/links` so
 
 ## Ablauf
 
-1. Ein User mit `links.create` erzeugt einen Link (`POST /api/invites`). Die Antwort enthält die Adresse `https://auth.anfall.net/invite/<token>` **einmal**. **[A]** Gespeichert ist nur der Hash (SHA-256 eines 256-Bit-Zufallstokens), der Token steht nie im Protokoll und lässt sich später nicht mehr anzeigen.
+1. Ein User mit `links.create` erzeugt einen Link (`POST /api/invites`). Die Antwort enthält die Adresse `https://anfall.net/invite/<token>` **einmal**. **[A]** Gespeichert ist nur der Hash (SHA-256 eines 256-Bit-Zufallstokens), der Token steht nie im Protokoll und lässt sich später nicht mehr anzeigen.
 2. Die Registrierungsseite prüft den Link nur (`GET /api/invite/<token>`, verbraucht nichts: Mail- und Messenger-Vorschauen öffnen Links von selbst).
 3. Beim **Absenden** des Formulars (`POST /api/invite/<token>/register`) wird der Link verbraucht. Das Konto entsteht mit unbestätigter E-Mail, `invited_by` zeigt auf den Ersteller, die Bestätigungsmail geht in der Sprache, die auf der Seite gewählt war. Ohne Bestätigung kein Login (wie bei allen Konten).
 4. Fehler im Formular (Username oder E-Mail vergeben, Passwortregeln) lassen den Link **unverbraucht** (die Transaktion wird zurückgerollt).

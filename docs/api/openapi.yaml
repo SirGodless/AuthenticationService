@@ -15,7 +15,7 @@ info:
     **Namensraum der Rechte:** Rechte, die zu einem Dienst gehören, tragen seinen Schlüssel als Präfix (`media.upload`
     gehört zum Dienst `media`). Ein Dienst sieht nur Rechte aus seinem eigenen Namensraum.
 servers:
-  - url: https://auth.anfall.net
+  - url: https://anfall.net
     description: Produktion (der Aussteller darf sich nie ändern)
 tags:
   - name: Token

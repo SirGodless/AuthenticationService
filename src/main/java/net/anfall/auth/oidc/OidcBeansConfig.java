@@ -43,7 +43,7 @@ class OidcBeansConfig {
         return new JdbcOAuth2AuthorizationService(jdbc, clients);
     }
 
-    /** Die Issuer-Adresse ist fest (https://auth.anfall.net) und darf sich nie ändern, sie steht in allen Clients. */
+    /** Die Issuer-Adresse ist fest (https://anfall.net) und darf sich nie ändern, sie steht in allen Clients. */
     @Bean
     AuthorizationServerSettings authorizationServerSettings(AppProperties props) {
         return AuthorizationServerSettings.builder().issuer(props.publicBaseUrl()).build();

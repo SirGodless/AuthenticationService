@@ -43,7 +43,7 @@ management:
       enabled: false
 
 app:
-  public-base-url: ${PUBLIC_BASE_URL:https://auth.anfall.net}
+  public-base-url: ${PUBLIC_BASE_URL:https://anfall.net}
   totp-encryption-key: ${TOTP_ENCRYPTION_KEY:}
   password-pepper-key: ${PASSWORD_PEPPER_KEY:}
   oidc-key-encryption-key: ${OIDC_KEY_ENCRYPTION_KEY:}

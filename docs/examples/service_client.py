@@ -2,7 +2,7 @@
 
 Zeigt: Token des Dienstes holen, Rechte eines Nutzers abfragen, Farbe und Status melden und ein Token eines Nutzers prüfen.
 Braucht:  pip install requests pyjwt cryptography
-Aufruf:   HUB_ISSUER=https://auth.anfall.net CLIENT_ID=media CLIENT_SECRET=... python service_client.py <sub-des-nutzers>
+Aufruf:   HUB_ISSUER=https://anfall.net CLIENT_ID=media CLIENT_SECRET=... python service_client.py <sub-des-nutzers>
 """
 import os
 import sys

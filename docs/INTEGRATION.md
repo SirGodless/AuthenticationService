@@ -1,6 +1,6 @@
 # Dienste anbinden (Integrationsleitfaden)
 
-Für Entwickler eigener oder umgeschriebener Dienste. Gilt für den Hub `https://auth.anfall.net`. Die maschinenlesbare Beschreibung der Dienst-Schnittstelle steht in [`docs/api/openapi.yaml`](api/openapi.yaml), ein lauffähiges Beispiel in [`docs/examples/service_client.py`](examples/service_client.py).
+Für Entwickler eigener oder umgeschriebener Dienste. Gilt für den Hub `https://anfall.net`. Die maschinenlesbare Beschreibung der Dienst-Schnittstelle steht in [`docs/api/openapi.yaml`](api/openapi.yaml), ein lauffähiges Beispiel in [`docs/examples/service_client.py`](examples/service_client.py).
 
 Stand der Beispiele: Die `curl`-Befehle und das Python-Beispiel wurden gegen einen echten Stack ausprobiert (Token holen, Rechte abfragen, melden, Token prüfen). Für andere Sprachen gibt es hier keine Beispiele, weil ich sie nicht ausprobieren konnte. Es gelten dieselben Schritte mit einer OIDC- und einer JWT-Bibliothek der jeweiligen Sprache.
 
@@ -14,7 +14,7 @@ Der Hub ist der zentrale **OpenID-Connect-Provider (OIDC)** für alle Dienste. E
 
 | Begriff | Bedeutung |
 | :- | :- |
-| Aussteller (Issuer) | `https://auth.anfall.net`. Fest, ändert sich nie. Steht als `iss` in jedem Token. |
+| Aussteller (Issuer) | `https://anfall.net`. Fest, ändert sich nie. Steht als `iss` in jedem Token. |
 | Dienst-Schlüssel (`key`) | Kurzer Name des Dienstes, z. B. `media`. Ist zugleich die **Client-ID** und das **Präfix seiner Rechte**. |
 | `sub` | Die Kennung eines Nutzers: eine UUID, die sich nie ändert. **Das** ist der Schlüssel für Nutzer im Dienst (nicht Username oder E-Mail, die sich ändern können). |
 | Recht | Ein benannter Schalter oder eine Zahl, z. B. `media.upload`, `media.quota_gb`. Pflegt der Admin im Hub (Rollen, direkte Rechte). |
@@ -61,11 +61,11 @@ Die Befehlszeile geht weiterhin (`auth-admin register-service`), das Dashboard i
 
 ```
 Nutzer ruft den Dienst auf
- └─ Dienst leitet zu  GET https://auth.anfall.net/oauth2/authorize?...        (Schritt 1)
+ └─ Dienst leitet zu  GET https://anfall.net/oauth2/authorize?...        (Schritt 1)
      ├─ ohne Sitzung: Login-Seite des Hubs, danach zurück zum Authorize
      ├─ ohne Recht service.<key>: Seite "Kein Zugang", kein Code
      └─ mit Recht: Weiterleitung an die Rücksprung-Adresse  ?code=...&state=...
- └─ Dienst tauscht den Code  POST https://auth.anfall.net/oauth2/token        (Schritt 2)
+ └─ Dienst tauscht den Code  POST https://anfall.net/oauth2/token        (Schritt 2)
  └─ Dienst prüft das ID-Token und legt seine Sitzung an                       (Schritt 3)
 ```
 
@@ -85,7 +85,7 @@ Parameter (alle sind Pflicht außer `nonce`):
 | `nonce` | optional, wird im ID-Token zurückgegeben |
 
 ```
-https://auth.anfall.net/oauth2/authorize?response_type=code&client_id=media
+https://anfall.net/oauth2/authorize?response_type=code&client_id=media
   &redirect_uri=https%3A%2F%2Fmedia.anfall.net%2Fauth%2Fcallback
   &scope=openid%20profile%20email%20offline_access&state=Zf8x...
   &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256
@@ -96,7 +96,7 @@ https://auth.anfall.net/oauth2/authorize?response_type=code&client_id=media
 ### 5.3 Schritt 2: Code tauschen
 
 ```bash
-curl -s https://auth.anfall.net/oauth2/token \
+curl -s https://anfall.net/oauth2/token \
   -u "media:$CLIENT_SECRET" \
   -d grant_type=authorization_code -d code="$CODE" \
   -d redirect_uri=https://media.anfall.net/auth/callback -d code_verifier="$VERIFIER"
@@ -115,7 +115,7 @@ Das `refresh_token` gibt es **nur mit dem Scope `offline_access`**.
 Alle Tokens sind JWTs (RS256). **Immer prüfen**:
 
 1. Signatur mit dem passenden Schlüssel aus `GET /oauth2/jwks` (über `kid` im Kopf des Tokens, Schlüssel zwischenspeichern, bei unbekanntem `kid` neu laden: Der Hub rotiert Schlüssel, alte bleiben 2 Tage im JWKS).
-2. `iss` ist genau `https://auth.anfall.net`.
+2. `iss` ist genau `https://anfall.net`.
 3. `aud` enthält die eigene Client-ID.
 4. `exp` liegt in der Zukunft (kleine Toleranz von einigen Sekunden für Uhrunterschiede ist in Ordnung).
 5. Beim ID-Token: `nonce` stimmt, falls gesendet.
@@ -145,7 +145,7 @@ Der Username kann sich im Prinzip nicht ändern (er bleibt für immer belegt), d
 | Sitzung des Nutzers im Hub | 12 Stunden, mit "Eingeloggt bleiben" 30 Tage |
 
 ```bash
-curl -s https://auth.anfall.net/oauth2/token -u "media:$CLIENT_SECRET" -d grant_type=refresh_token -d refresh_token="$REFRESH"
+curl -s https://anfall.net/oauth2/token -u "media:$CLIENT_SECRET" -d grant_type=refresh_token -d refresh_token="$REFRESH"
 ```
 
 **Bei jedem Refresh prüft der Hub den Zugang neu.** Ist der Nutzer gebannt, hat er das Recht `service.<key>` nicht mehr oder ist seine Hub-Sitzung (ohne "Eingeloggt bleiben") länger als 12 Stunden her, antwortet der Token-Endpunkt mit `400 {"error":"invalid_grant"}` und das Refresh-Token ist endgültig ungültig. Der Dienst beendet dann die Sitzung des Nutzers und schickt ihn zurück zur Anmeldung. **So wirken Entzug und Bann: nach spätestens einem Access-Token-Leben (10 Minuten), wenn der Dienst regelmäßig refresht.** Bereits ausgestellte Access-Tokens bleiben bis zu ihrem Ablauf gültig.
@@ -159,7 +159,7 @@ Ins Token kommen **keine Rechte** (nur die Identität). Das Token bliebe sonst b
 ### 6.1 Token des Dienstes holen
 
 ```bash
-curl -s https://auth.anfall.net/oauth2/token -u "media:$CLIENT_SECRET" -d grant_type=client_credentials -d scope=service
+curl -s https://anfall.net/oauth2/token -u "media:$CLIENT_SECRET" -d grant_type=client_credentials -d scope=service
 # {"access_token":"eyJ...","token_type":"Bearer","expires_in":599,"scope":"service"}
 ```
 
@@ -168,7 +168,7 @@ Es gilt 10 Minuten und hat **kein Refresh-Token**: Neu holen, wenn es abläuft (
 ### 6.2 Abfrage
 
 ```bash
-curl -s -H "Authorization: Bearer $SERVICE_TOKEN" https://auth.anfall.net/api/service/users/$SUB/permissions
+curl -s -H "Authorization: Bearer $SERVICE_TOKEN" https://anfall.net/api/service/users/$SUB/permissions
 ```
 
 ```json
@@ -200,7 +200,7 @@ Regeln:
 
 ```bash
 curl -s -X PUT -H "Authorization: Bearer $SERVICE_TOKEN" -H "Content-Type: application/json" \
-  -d '{"accentColor":"#22aa55","status":{"state":"up","ttlSeconds":300}}' https://auth.anfall.net/api/service/self
+  -d '{"accentColor":"#22aa55","status":{"state":"up","ttlSeconds":300}}' https://anfall.net/api/service/self
 ```
 
 - **`accentColor`** (`#rrggbb`): Eine gemeldete Farbe **überschreibt** die im Hub eingestellte, **außer** ein Admin hat im Hub festgehalten, dass seine Farbe bleibt. `""` löscht die gemeldete Farbe. Der Hub färbt damit die Knöpfe des Dienstes.

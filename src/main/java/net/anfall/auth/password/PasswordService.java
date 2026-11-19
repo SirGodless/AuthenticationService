@@ -105,7 +105,7 @@ public class PasswordService {
         words.add(props.totpIssuer());           // z. B. "anfall.net"
         words.add("userhub");
         try {
-            String host = URI.create(props.publicBaseUrl()).getHost();   // z. B. "auth.anfall.net"
+            String host = URI.create(props.publicBaseUrl()).getHost();   // z. B. "anfall.net"
             if (host != null) {
                 words.add(host);
             }

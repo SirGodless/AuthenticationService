@@ -159,7 +159,7 @@ Postfix versucht es weiter.
 
 ## Admin-Dashboard und 2FA-Seite
 
-Unter `https://auth.anfall.net/admin` verwaltest du Benutzer (suchen, bannen, 2FA zurücksetzen, Passwort-Reset erzwingen, Rollen und direkte Rechte), Rollen, Rechte und liest das Protokoll. Welche Reiter du siehst, hängt von deinen `admin.*`-Rechten ab. Admin-Funktionen verlangen eine eingerichtete 2FA, ohne sie zeigt die Seite einen Hinweis mit Link zu `https://auth.anfall.net/account/2fa`. Dort richtet jeder User seine 2FA ein, erzeugt neue Wiederherstellungscodes und (nur ohne Verwaltungsrechte) schaltet sie ab. Die Dienste (Clients) verwaltest du bis Etappe 6 weiter per Befehl (siehe unten).
+Unter `https://anfall.net/admin` verwaltest du Benutzer (suchen, bannen, 2FA zurücksetzen, Passwort-Reset erzwingen, Rollen und direkte Rechte), Rollen, Rechte und liest das Protokoll. Welche Reiter du siehst, hängt von deinen `admin.*`-Rechten ab. Admin-Funktionen verlangen eine eingerichtete 2FA, ohne sie zeigt die Seite einen Hinweis mit Link zu `https://anfall.net/account/2fa`. Dort richtet jeder User seine 2FA ein, erzeugt neue Wiederherstellungscodes und (nur ohne Verwaltungsrechte) schaltet sie ab. Die Dienste (Clients) verwaltest du bis Etappe 6 weiter per Befehl (siehe unten).
 
 ## Backup
 
@@ -167,11 +167,11 @@ Der Container `auth-backup` macht jeden Tag um 0 Uhr ein Backup (7 Tage aufbewah
 
 ## Hub und Dienste
 
-Nach dem Login zeigt `https://auth.anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du im Dashboard an (Reiter Services: Schlüssel, Name, Rücksprung-Adressen, das Client-Geheimnis wird einmal angezeigt). Wie ein Dienst sich anbindet, Rechte abfragt und Farbe oder Status meldet, steht in `docs/INTEGRATION.md`, die Schnittstelle in `docs/api/openapi.yaml`, ein lauffähiges Beispiel in `docs/examples/service_client.py`. Der Hub läuft auf `auth.anfall.net`, `anfall.net` leitet dorthin um. Wer im Hub angemeldet ist, ist auch in den Diensten angemeldet, ohne neue Eingabe, und die Dienste bleiben direkt aufrufbar (Einmal-Anmeldung über den OIDC-Provider). Darstellung (hell, dunkel, wie das Gerät) und Sprache stellt jeder auf der Profilseite ein. Eine vom Dienst gemeldete Farbe überschreibt die im Hub eingestellte, außer du setzt im Dashboard bei dem Dienst das Kästchen "Diese Farbe behalten" (einen Meldeweg für Dienste gibt es noch nicht).
+Nach dem Login zeigt `https://anfall.net` die Dienste, die der User nutzen darf, mit Status. Pro Dienst stellst du im Dashboard unter "Services" Anzeigename, Beschreibung, Adresse, Adresse für die Statusprüfung und die **Akzentfarbe** ein (sie färbt den Knopf des Dienstes im Hub). Das Backend prüft die Status-Adressen alle 60 Sekunden. Dienste legst du im Dashboard an (Reiter Services: Schlüssel, Name, Rücksprung-Adressen, das Client-Geheimnis wird einmal angezeigt). Wie ein Dienst sich anbindet, Rechte abfragt und Farbe oder Status meldet, steht in `docs/INTEGRATION.md`, die Schnittstelle in `docs/api/openapi.yaml`, ein lauffähiges Beispiel in `docs/examples/service_client.py`. Der Hub, der Login und der OIDC-Provider laufen alle unter `https://anfall.net`, `www.anfall.net` leitet dorthin um. Wer im Hub angemeldet ist, ist auch in den Diensten angemeldet, ohne neue Eingabe, und die Dienste bleiben direkt aufrufbar (Einmal-Anmeldung über den OIDC-Provider). Darstellung (hell, dunkel, wie das Gerät) und Sprache stellt jeder auf der Profilseite ein. Eine vom Dienst gemeldete Farbe überschreibt die im Hub eingestellte, außer du setzt im Dashboard bei dem Dienst das Kästchen "Diese Farbe behalten" (einen Meldeweg für Dienste gibt es noch nicht).
 
 ## Einladungslinks
 
-Konten gibt es nur über Einladungslinks. Ein User mit dem Recht `links.create` und einem Limit `links.max_active` erstellt sie auf `https://auth.anfall.net/account/links` und schickt sie weiter. Ein Link ist standardmäßig 7 Tage gültig (1 Stunde bis 30 Tage, mit Rolle oder Rechten höchstens 3 Tage), gilt einmal und wird erst beim Absenden des Formulars verbraucht. Er wird nur einmal angezeigt. Die Grenzen stellst du im Dashboard unter "Settings" ein, dort hebst du auch IP-Sperren auf (nach mehr als 3 falschen Links pro Stunde gilt eine Sperre von einem Tag). Das erste Konto mit diesen Rechten gibst du dir selbst im Dashboard unter "Users" (direkte Rechte `links.create` und `links.max_active`).
+Konten gibt es nur über Einladungslinks. Ein User mit dem Recht `links.create` und einem Limit `links.max_active` erstellt sie auf `https://anfall.net/account/links` und schickt sie weiter. Ein Link ist standardmäßig 7 Tage gültig (1 Stunde bis 30 Tage, mit Rolle oder Rechten höchstens 3 Tage), gilt einmal und wird erst beim Absenden des Formulars verbraucht. Er wird nur einmal angezeigt. Die Grenzen stellst du im Dashboard unter "Settings" ein, dort hebst du auch IP-Sperren auf (nach mehr als 3 falschen Links pro Stunde gilt eine Sperre von einem Tag). Das erste Konto mit diesen Rechten gibst du dir selbst im Dashboard unter "Users" (direkte Rechte `links.create` und `links.max_active`).
 
 ## Dienste anschließen (Vaultwarden, Audiobookshelf)
 
@@ -181,7 +181,7 @@ Ein Dienst ist ein OIDC-Client. Bis das Dashboard auch Dienste verwaltet, legst 
 docker compose exec auth-backend auth-admin register-service vault Vaultwarden https://vault.anfall.net/identity/connect/oidc-signin
 ```
 
-Der Befehl zeigt **einmal** die Client-ID (`vault`) und das Client-Secret an. Trage beides im Dienst ein, als Aussteller (Authority, Issuer) gilt `https://auth.anfall.net`. Danach gibst du einem Konto den Zugang:
+Der Befehl zeigt **einmal** die Client-ID (`vault`) und das Client-Secret an. Trage beides im Dienst ein, als Aussteller (Authority, Issuer) gilt `https://anfall.net`. Danach gibst du einem Konto den Zugang:
 
 ```bash
 docker compose exec auth-backend auth-admin grant-service joshua vault
@@ -198,7 +198,7 @@ Wiederherstellungscodes und beendet alle Sitzungen:
 docker compose exec auth-backend auth-admin reset-2fa joshua
 ```
 
-Danach reicht beim Login das Passwort. Die 2FA richtest du wieder auf `https://auth.anfall.net/account/2fa` ein.
+Danach reicht beim Login das Passwort. Die 2FA richtest du wieder auf `https://anfall.net/account/2fa` ein.
 
 Neuen Signierschlüssel für die Tokens erzeugen (der alte bleibt zwei Tage zum Prüfen im JWKS):
 

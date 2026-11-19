@@ -36,7 +36,7 @@ Alle schreibenden Aufrufe landen im Protokoll (Abschnitt 9), ohne Geheimnisse.
 
 ## Oberfläche (`UserHub`)
 
-- Seite `/admin` (nginx liefert `pages/admin.html`), Skript `pages/admin.js` mit Reitern. **[A]** Die Seiten laufen gleich-origin unter `auth.anfall.net` (siehe `hub-ui-authentication.md`, Variante 1); CORS für `anfall.net` kommt erst mit dem Hub in Etappe 6.
+- Seite `/admin` (nginx liefert `pages/admin.html`), Skript `pages/admin.js` mit Reitern. Die Seiten laufen unter derselben Adresse wie die API (`anfall.net`), CORS wird nicht gebraucht (siehe `hub-ui-authentication.md`).
 - Je Reiter ein Modul in `assets/js/admin/`: `users-list.js`, `users-detail.js`, `roles.js`, `permissions.js`, `audit.js`. Gemeinsam: `ui.js` (Aufrufe mit Umleitung bei 401, Meldungen, Zeitformat Europe/Berlin), `permission-value.js` (Eingabe und Anzeige von Rechte-Werten), `shared/dom.js` (Elemente bauen ohne `innerHTML`, Texte aus Daten landen nie als HTML im Dokument).
 - Die Seite zeichnet sich bei Sprachwechsel neu. Eine Ansicht, die erst nach einem Reiterwechsel fertig wird, zeichnet nichts mehr (Zähler `state.view`), sonst überschriebe sie die neue Ansicht.
 - **[A]** Rückfragen und Texteingaben (Bann bestätigen, Rolle umbenennen) laufen vorerst über die Standarddialoge des Browsers. Das Design der Oberfläche kommt mit Etappe 6.

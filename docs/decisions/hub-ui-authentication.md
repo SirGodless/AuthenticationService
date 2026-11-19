@@ -1,5 +1,7 @@
 # Wie sich die Hub-UI an der API anmeldet
 
+> **Hinweis (19.11.2026):** Dieses Dokument beschreibt die frühere Lage mit eigenem Auth-Host (`auth.anfall.net`). Seit dem 19.11.2026 laufen Hub, Login und OIDC auf `anfall.net`, siehe den Abschnitt am Ende. Die Varianten unten sind dadurch gegenstandslos und bleiben nur als Begründung stehen.
+
 Kennzeichnung: **[A]** Variante 1 ist die Annahme, Joshua hat (13.11.2026) keine Variante gewählt, sondern um eine ehrliche Empfehlung gebeten. Sie wartet auf Bestätigung. Gefragt wurde vor Etappe 3, weil `CLAUDE.md` (Abschnitt 8) das so verlangt. Etappe 3 hängt nicht davon ab.
 
 ## Ausgangslage
@@ -51,3 +53,9 @@ Das ist durch OIDC vorgegeben, keine Geschmacksfrage. Die Dienste (Vaultwarden, 
 Der OIDC-Provider (Etappe 3) ist von dieser Wahl nicht betroffen, nur die Hub-Schnittstelle (Etappe 4 bis 6).
 
 **Entscheidung (Joshua, 18.11.2026):** Für den Aufbau reicht `auth.anfall.net` als Adresse des Hubs. Seiten und API haben dann dieselbe Adresse, das Cookie ist host-only, **CORS wird nicht gebraucht und ist nirgends freigegeben** (getestet). `anfall.net` und `www.anfall.net` leiten auf `auth.anfall.net` um. Die Variante mit dem Hub unter `anfall.net` (Cookie plus CORS) bleibt eine Option für später.
+
+## Neue Entscheidung (Joshua, 19.11.2026): Hub, Login und OIDC auf derselben Adresse `anfall.net`
+
+Es gibt **keinen eigenen Auth-Host** mehr. Hub, Login, Dashboard, die API und der OIDC-Provider laufen alle unter `https://anfall.net`, `www.anfall.net` leitet dorthin um. Voraussetzung (von Joshua bestätigt): Auf `anfall.net` läuft sonst nichts, und es ist dort auch nichts Öffentliches geplant. Damit sind die oben beschriebenen Varianten gegenstandslos: Seiten und API haben dieselbe Adresse, das Sitzungs-Cookie ist host-only für `anfall.net` (es geht nicht an Subdomains wie `vault.anfall.net`), **CORS wird nicht gebraucht** und ist nirgends freigegeben (getestet).
+
+Der Issuer ist damit `https://anfall.net` und darf sich nie ändern. Soll auf `anfall.net` später doch etwas anderes laufen, müsste der Provider auf eine eigene Adresse ziehen, und alle Dienste müssten umgestellt werden. Deshalb wurde die Voraussetzung ausdrücklich bestätigt.

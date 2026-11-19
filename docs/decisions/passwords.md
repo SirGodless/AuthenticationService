@@ -22,7 +22,7 @@ In Etappe 2 hatte ich zwei Dinge aus dem Gedächtnis umgesetzt und NIST dafür z
 
 Nach NIST sollen Dienstname, Username "and derivatives thereof" auf die Sperrliste. Umsetzung (`password/check/PasswordContext`):
 
-- Wörter: Username, ganze E-Mail-Adresse, Teil vor dem @, Dienstname (`TOTP_ISSUER`, z. B. `anfall.net`), Host der Auth-Adresse (`auth.anfall.net`), `userhub`.
+- Wörter: Username, ganze E-Mail-Adresse, Teil vor dem @, Dienstname (`TOTP_ISSUER`, z. B. `anfall.net`), Host der Adresse des Hubs (`anfall.net`), `userhub`.
 - **[A] "Ableitung" heißt hier:** Das ganze Passwort besteht, ohne Ziffern, Trennzeichen und Groß-/Kleinschreibung, aus nichts anderem als einem dieser Wörter, auch mehrfach hintereinander. Beispiel bei Username `joshua`: `Joshua-Joshua-2026-JOSHUA` wird abgelehnt, `joshua loves a long passphrase` bleibt erlaubt. Das passt zu NIST ("die gesamte Eingabe wird verglichen, nicht Teile oder darin enthaltene Wörter") und zu deiner Vorgabe, das ganze Passwort zu vergleichen.
 - Wörter mit weniger als 3 Buchstaben werden ignoriert.
 

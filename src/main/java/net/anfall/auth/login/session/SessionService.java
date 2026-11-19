@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 /**
  * Anmeldesitzungen. Der Browser bekommt einen zufälligen Wert im Cookie, in der Datenbank steht nur
  * dessen Hash. "Host"-Präfix im Cookie-Namen: Der Browser akzeptiert ihn nur mit Secure, ohne Domain
- * und mit Pfad "/", das Cookie gilt also nur für auth.anfall.net selbst.
+ * und mit Pfad "/", das Cookie gilt also nur für anfall.net selbst.
  */
 @Service
 public class SessionService {

@@ -27,7 +27,7 @@ trap 'docker rm -f caddy-test >/dev/null 2>&1 || true' EXIT
 # (HTTPS ist nötig, weil die Cookies "Secure" sind).
 CADDYFILE=$(mktemp)
 { printf '{\n\tlocal_certs\n\tskip_install_trust\n}\n'
-  sed -n '/^auth\.anfall\.net {/,/^}/p' deploy/Caddyfile.snippet | sed 's/^auth\.anfall\.net {/auth.test {\n\ttls internal/'; } > "$CADDYFILE"
+  sed -n '/^anfall\.net {/,/^}/p' deploy/Caddyfile.snippet | sed 's/^anfall\.net {/auth.test {\n\ttls internal/'; } > "$CADDYFILE"
 docker rm -f caddy-test >/dev/null 2>&1 || true
 docker run -d --name caddy-test --network caddy_net \
   -v "$CADDYFILE:/etc/caddy/Caddyfile:ro" caddy:2-alpine >/dev/null

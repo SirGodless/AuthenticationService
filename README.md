@@ -16,6 +16,7 @@ steht in `CLAUDE.md`.
 | `src/main/resources/application.yml` | Einstellungen, die aus Umgebungsvariablen kommen. |
 | `src/test/java/net/anfall/auth/` | Tests, gleiche Paketstruktur wie der Code. `testsupport/` enthält die gemeinsamen Hilfen (Test-Datenbank, Test-Mailserver, Browser-Simulation). |
 | `tests/e2e/` | Ende-zu-Ende-Test im echten Browser mit Test-Caddy (`run.sh`). |
+| `setup.sh` | Ersteinrichtung: schreibt die `.env`, erzeugt die Schlüssel, wählt das Docker-Netzwerk von Caddy aus der Liste (Test: `tests/setup/test.sh`). |
 | `backup/` | Container für die Datenbank-Backups: Zeitplan, Aufbewahrung, Wiederherstellung und ein Test dafür. |
 | `deploy/` | `Caddyfile.snippet`: der Block, den du in deinen Caddy einträgst. |
 | `scripts/` | Skripte: Sperrliste laden (`fetch-blocklist.sh`), Betreiber-Befehle im Container (`auth-admin`). |
@@ -33,7 +34,7 @@ cd /opt/containers
 git clone https://github.com/SirGodless/AuthenticationService.git
 git clone https://github.com/SirGodless/UserHub.git
 cd AuthenticationService
-cp .env.example .env        # Werte eintragen (siehe Kommentare in der Datei)
+./setup.sh                  # schreibt die .env, erzeugt die Schlüssel, wählt das Caddy-Netzwerk
 docker compose up -d --build
 docker compose logs auth-backend | grep SETUP-LINK   # Link für den ersten Admin
 ```
@@ -43,6 +44,7 @@ docker compose logs auth-backend | grep SETUP-LINK   # Link für den ersten Admi
 ```bash
 mvn test            # Unit- und Integrationstests, brauchen Docker (Test-PostgreSQL)
 tests/e2e/run.sh    # Ende-zu-Ende im Browser, siehe Kommentar in der Datei (Node mit Playwright nötig)
+tests/setup/test.sh # setup.sh: frische Einrichtung, Wiederholung, vorhandene Werte, Auswahl, Fehlerfälle (braucht Docker)
 backup/test.sh      # Backup: Aufbewahrung über 400 nachgespielte Tage und Wiederherstellung (braucht Docker)
 ```
 

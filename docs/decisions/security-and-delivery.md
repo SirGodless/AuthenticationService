@@ -46,6 +46,17 @@ Container `auth-backup` (Verzeichnis `backup/`, Basis das Postgres-Image, Benutz
 - **Wiederherstellung** getestet (Daten ändern, Dump zurückspielen, Daten wieder da): `backup/restore.sh`.
 - Im Browser-Test läuft der Container im echten Stack mit: Dump, Schlüsseldatei und DKIM-Sicherung entstehen, der Container ist gesund.
 
+## Ersteinrichtung mit `setup.sh` (**[E]** Wunsch von Joshua, 19.11.2026)
+
+Joshua wollte nicht von Hand Schlüssel erzeugen und das Netzwerk nachschlagen. `setup.sh` (im Hauptordner, bash) schreibt die `.env` aus der Vorlage `.env.example`, erzeugt die vier Geheimnisse, lässt das Netzwerk von Caddy aus der Liste der vorhandenen wählen (mit Adressbereich und den Containern darin, daraus wird `TRUSTED_PROXIES`) und fragt Adresse, Mail-Domain und Backup-Ordner ab. Mit `--yes` und Optionen läuft es ohne Fragen.
+
+- **Nie vorhandene Schlüssel ändern (**[A]**):** Ein zweiter Lauf setzt nur fehlende Werte und Platzhalter. Schlüssel neu zu erzeugen würde 2FA-Geheimnisse, Passwörter (Pepper) und Signierschlüssel unlesbar machen. Dafür gibt es bewusst keine Option. Vor jeder Änderung an einer vorhandenen Datei entsteht eine Sicherungskopie. Eigene Einträge der alten Datei bleiben.
+- **Die drei Schlüssel sind verschieden** (der Dienst startet sonst nicht), jeder hat genau 32 Byte in Base64. Das Datenbank-Passwort enthält nur `A-Z a-z 0-9 - _`.
+- **Netzwerkname ist einstellbar:** In `docker-compose.yml` heißt das externe Netzwerk jetzt `${CADDY_NETWORK:-caddy_net}` (der Schlüssel im Compose-File bleibt `caddy_net`). Das Skript warnt, wenn in dem gewählten Netzwerk kein Container mit "caddy" im Namen hängt.
+- **Geheimnisse nicht auf den Bildschirm:** Die Ausgabe nennt nur Namen, nie Werte (außer mit `--show-secrets`). Die Datei ist `chmod 600`.
+- **Prüfung am Ende:** `docker compose config -q` mit der neuen Datei. Das fängt auch ein fehlendes `../UserHub` ab.
+- Getestet in `tests/setup/test.sh` (31 Prüfungen, Wegwerf-Netzwerke und Wegwerf-.env). **[U]** Nicht getestet: eine Eingabe auf einem echten Terminal (die Eingabeaufforderungen erscheinen nur dort, im Test kommen die Antworten über die Eingabe), und ein Server mit mehreren Netzwerken verschiedener Art.
+
 ## Feste Versionen und Schwachstellen (Abschnitt 10)
 
 - **Images:** Alle Basis-Images (Backend-Build und -Laufzeit, UI, Backup, Datenbank, Mailpit) sind per Digest festgenagelt (Stand 18.11.2026). Der Mailserver war es schon. Wie man sie aktualisiert, steht in `DEPLOY.md`.

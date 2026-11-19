@@ -15,39 +15,35 @@ git clone https://github.com/SirGodless/UserHub.git
 cd AuthenticationService
 ```
 
-## 2. Einstellungen eintragen
+## 2. Einrichtung mit `setup.sh`
+
+Das Skript schreibt die `.env` für dich, erzeugt alle Schlüssel und wählt das Docker-Netzwerk von Caddy aus der Liste der vorhandenen aus:
 
 ```bash
-cp .env.example .env
+./setup.sh
 ```
 
-Das Adressnetz von `caddy_net` gehört in `TRUSTED_PROXIES`. Nur von dort glaubt das Backend den Angaben von Caddy zur echten IP der Besucher (sonst ließen sich IP-Sperren umgehen). Prüfen mit:
+Es fragt der Reihe nach (Enter nimmt jeweils den Vorschlag):
+
+1. **Docker-Netzwerk von Caddy:** eine Liste der vorhandenen Netzwerke mit Adressbereich und den Containern darin (so erkennst du das, in dem dein Caddy hängt). Du wählst per Nummer oder Name, oder legst ein neues an. Den Adressbereich trägt das Skript als `TRUSTED_PROXIES` ein (nur von dort glaubt das Backend den Angaben von Caddy zur echten IP der Besucher, sonst ließen sich IP-Sperren umgehen).
+2. **Adresse des Hubs** (Standard `https://auth.anfall.net`, ändert sich nie wieder, sie steht in allen Diensten) und die **Domain für Mails** (Standard `anfall.net`). Daraus entstehen Absender, Mailserver-Name und Name in der Authenticator-App.
+3. **Backup-Ordner** (Standard `./backups`). Das Skript legt ihn an und gibt ihn dem Benutzer 70, als der der Backup-Container läuft. Fehlen dafür die Rechte, sagt es dir den Befehl mit `sudo`.
+
+Außerdem erzeugt es `DB_PASSWORD`, `TOTP_ENCRYPTION_KEY`, `PASSWORD_PEPPER_KEY` und `OIDC_KEY_ENCRYPTION_KEY` (die drei Schlüssel garantiert verschieden), setzt die Datei auf "nur für dich lesbar" und prüft am Ende, dass Compose sie lesen kann. Die Schlüssel werden **nicht** ausgegeben (mit `--show-secrets` doch).
+
+**Sicher wiederholbar:** Ein zweiter Lauf ändert nichts an vorhandenen Werten, besonders nicht an den Schlüsseln (sonst wären gespeicherte 2FA-Geheimnisse, Passwörter und Signierschlüssel unlesbar). Gesetzt werden nur fehlende Werte und Platzhalter (`bitte-aendern`), eigene Einträge bleiben, und vor jeder Änderung an einer vorhandenen Datei entsteht eine Sicherungskopie `.env.bak-...`. Die `.env` selbst gehört nicht ins automatische Backup (dort liegen nur zwei der Schlüssel, siehe Abschnitt Backup): Bewahre eine Kopie getrennt auf.
+
+Ohne Fragen (zum Beispiel für ein Skript): `./setup.sh --yes --network caddy_net` (weitere Optionen: `--public-url`, `--mail-domain`, `--backup-dir`, `--env-file`, `--help`).
+
+Wenn du es lieber von Hand machst: `cp .env.example .env`, die Werte eintragen (Erzeugen mit `openssl rand -base64 32`, für das Passwort der Datenbank `-base64 24`) und den Backup-Ordner selbst anlegen (`mkdir -p backups && sudo chown 70:70 backups`).
+
+**Danach unbedingt:** Den Pepper getrennt vom Backup aufbewahren, z. B. im Passwortmanager (`grep PASSWORD_PEPPER_KEY .env`), sonst schützt er nichts. Geht er verloren, passt kein bestehendes Passwort mehr, und alle müssten per Passwort-Reset ein neues setzen. Die `.env` gehört nie ins Git.
+
+## 3. Prüfen
 
 ```bash
-docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}' caddy_net
+docker compose config -q && echo "Einstellungen sind in Ordnung"
 ```
-
-Vier Werte erzeugst du so, jeder muss ein anderer sein:
-
-```bash
-openssl rand -base64 24   # DB_PASSWORD
-openssl rand -base64 32   # TOTP_ENCRYPTION_KEY
-openssl rand -base64 32   # PASSWORD_PEPPER_KEY
-openssl rand -base64 32   # OIDC_KEY_ENCRYPTION_KEY
-```
-
-Die drei Schlüssel nie mehr ändern. `PASSWORD_PEPPER_KEY` bewahrst du **getrennt** vom Backup auf (Passwortmanager), sonst schützt er nichts. Geht er verloren, passt kein bestehendes Passwort mehr. Mit einem neuen Pepper müssten alle per Passwort-Reset ein neues setzen.
-
-## 3. Ordner für Backups anlegen
-
-Die Backups landen auf diesem Server (so entschieden). Der Backup-Container läuft ohne Root-Rechte als Benutzer 70, dem Ordner muss er gehören:
-
-```bash
-mkdir -p backups
-sudo chown 70:70 backups
-```
-
-Wenn du den Ordner woanders willst, `BACKUP_DIR` in `.env` ändern.
 
 ## 4. Starten
 

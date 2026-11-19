@@ -57,7 +57,7 @@ Container:
 - [E] Joshua (18.11.2026): Der Hub darf vorerst unter `auth.anfall.net` laufen (`anfall.net` und `www.anfall.net` leiten dorthin um). Damit entfällt CORS.
 - [A] Die Login-Seite muss unter `auth.anfall.net` erscheinen. Caddy verteilt dort die Pfade: `/oauth2/*`, `/.well-known/*`, `/connect/*`, `/userinfo` und `/api/*` an das Backend, alles andere an den UI-Container.
 - [E] Caddy: Du änderst die laufende Caddy-Konfiguration nicht. Du lieferst einen Block in `deploy/Caddyfile.snippet`, den Joshua selbst einträgt.
-- [E] Deployment: Joshua klont beide Repos in einen Ordner auf dem Server, kopiert `.env.example` nach `.env`, trägt echte Werte ein und startet `docker compose up -d --build`. Schreibe dafür `docs/DEPLOY.md` in einfachen Schritten (Joshua kennt Konzepte, aber nicht jede Syntax auswendig).
+- [E] Deployment: Joshua klont beide Repos in einen Ordner auf dem Server, führt `./setup.sh` aus (schreibt die `.env`, erzeugt die Schlüssel, wählt das Docker-Netzwerk von Caddy aus der Liste, Joshua 19.11.2026) und startet `docker compose up -d --build`. Schreibe dafür `docs/DEPLOY.md` in einfachen Schritten (Joshua kennt Konzepte, aber nicht jede Syntax auswendig).
 - [A] Container laufen als Nicht-Root-User, haben Healthchecks und feste Image-Versionen.
 - [E] Backup der Datenbank (Joshua, 13.11.2026): am Anfang jedes Monats eines, das 1 Jahr aufbewahrt wird, und jeden Tag um 0 Uhr eines, das nach 7 Tagen gelöscht wird. Umsetzung in Etappe 7, Dump-Befehl bis dahin in `docs/DEPLOY.md`. Offen: Ziel des Backups und Zeitzone.
 

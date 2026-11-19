@@ -133,6 +133,8 @@ networks:
   # Gehört zu Caddy und existiert schon auf dem Server (Annahme, siehe docs/DECISIONS.md)
   caddy_net:
     external: true
+    # Name des Netzwerks, in dem dein Caddy hängt (setup.sh trägt ihn in .env ein)
+    name: ${CADDY_NETWORK:-caddy_net}
   # Nur intern: kein Zugang von außen
   internal:
     internal: true

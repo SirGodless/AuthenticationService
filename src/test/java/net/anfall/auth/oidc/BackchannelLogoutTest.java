@@ -171,4 +171,22 @@ class BackchannelLogoutTest extends OidcTestBase {
         assertThat(jdbc.sql("SELECT details->>'ok' FROM audit_log WHERE action = 'service.backchannel_logout'")
                 .query(String.class).single()).isEqualTo("false");
     }
+
+    @Test
+    void theLogoutTokenReachesAServiceThatDropsHttp2UpgradeRequests() throws Exception {
+        setUpVaultAndJoshua();
+        try (var service = new net.anfall.auth.testsupport.UpgradeAverseServer(200)) {
+            var s = services.findByKey("vault").orElseThrow();
+            services.updateDisplay("vault", s.displayName(), s.description(), s.url(), s.accentColor(), s.accentLocked(),
+                    s.healthUrl(), s.openMode(), "http://127.0.0.1:" + service.port() + "/auth/backchannel-logout");
+            Browser b = loggedIn("joshua");
+            fullLogin(b);
+            assertThat(b.post("/api/auth/logout", Map.of()).ok()).isTrue();
+            for (int i = 0; i < 100 && service.requests.isEmpty(); i++) {
+                Thread.sleep(50);
+            }
+            assertThat(service.requests).hasSize(1);
+            assertThat(service.requests.get(0)).startsWith("POST /auth/backchannel-logout").contains("logout_token=");
+        }
+    }
 }

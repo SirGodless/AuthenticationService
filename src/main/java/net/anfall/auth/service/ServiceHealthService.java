@@ -35,6 +35,8 @@ public class ServiceHealthService {
 
     private final ServiceRepository services;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(TIMEOUT)
+            // Nur HTTP/1.1: Der Standard schickt bei http:// einen Upgrade-Wunsch (h2c) mit, und Dienste wie Next.js schließen darauf die Verbindung
+            .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.NEVER).build();
     private final Map<String, Status> results = new ConcurrentHashMap<>();
     /** Vom Dienst gemeldeter Status mit Ablaufzeit. Solange er gilt, hat er Vorrang vor der Abfrage. */

@@ -27,3 +27,9 @@ Hintergrund (Joshua, 18.11.2026): Über den Hub laufen vor allem **eigene oder u
 
 - `ServiceDashboardTest` (9), `ServiceApiTest` (22), Browser-Test (Anlegen im Dashboard, Geheimnis einmal sichtbar, Rücksprung-Adressen, Token holen, Rechte abfragen, Melden, Anzeige im Hub) und das Python-Beispiel gegen den echten Stack.
 - **[U]** Das Zusammenspiel mit einem echten fremden OIDC-Client (Bibliothek) wurde nicht geprüft, nur mit dem Testclient und `curl`.
+
+## Statusabfrage und Logout-Token nur mit HTTP/1.1 (25.11.2026)
+
+- **Fehler:** SubSplit (Next.js) stand im Hub auf "offline", obwohl `/healthz` im Browser und mit `wget` aus dem Hub-Container `200` lieferte. Ursache: Der Java-HttpClient schickt bei `http://` standardmäßig einen Upgrade-Wunsch auf HTTP/2 (`Upgrade: h2c`) mit. Der Node-Server von Next.js schließt darauf die Verbindung ohne Antwort. Mit `curl --http2` gegen einen lokal gestarteten SubSplit nachgestellt (curl-Fehler 52, ohne den Kopf `200`).
+- **Betroffen** waren die Statusabfrage (`ServiceHealthService`) und das Logout-Token (`BackchannelLogoutService`) bei Adressen mit `http://`, also auch bei den internen Adressen wie `http://subsplit:3000/...`. Mit `https://` über Caddy trat es nicht auf (dort gilt ALPN).
+- **Behoben:** Beide HttpClients nutzen nur HTTP/1.1. Tests mit einem Server, der Upgrade-Anfragen ohne Antwort schließt (`UpgradeAverseServer`): Ohne die Änderung scheitern genau diese zwei Tests.

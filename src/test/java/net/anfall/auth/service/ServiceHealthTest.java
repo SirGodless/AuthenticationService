@@ -88,4 +88,16 @@ class ServiceHealthTest extends IntegrationTestBase {
         health.checkNow();
         assertThat(health.mailStatus().state()).isEqualTo("up");   // GreenMail im Test
     }
+
+    @Test
+    void aServiceThatDropsHttp2UpgradeRequestsIsStillUp() throws Exception {
+        // Wie Next.js: Ein Upgrade-Wunsch (h2c) lässt die Verbindung abreißen. Der Hub fragt deshalb nur mit HTTP/1.1 ab.
+        registration.register("vault", "Vaultwarden", List.of("https://v.example/cb"));
+        try (var server = new net.anfall.auth.testsupport.UpgradeAverseServer(200)) {
+            setHealth("vault", "http://127.0.0.1:" + server.port() + "/healthz");
+            health.checkNow();
+            assertThat(health.status("vault").state()).isEqualTo("up");
+            assertThat(server.requests).hasSize(1);
+        }
+    }
 }

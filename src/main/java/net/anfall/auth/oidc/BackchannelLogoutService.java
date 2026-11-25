@@ -55,6 +55,8 @@ public class BackchannelLogoutService {
     private final AuditLog audit;
     private final String issuer;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3))
+            // Nur HTTP/1.1: Der Standard schickt bei http:// einen Upgrade-Wunsch (h2c) mit, und Dienste wie Next.js schließen darauf die Verbindung
+            .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.NEVER).build();
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
